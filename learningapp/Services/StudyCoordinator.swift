@@ -32,8 +32,13 @@ final class StudyCoordinator {
         // 3. Generate a title from the first chunk
         if material.title.isEmpty {
             let titleText = rawChunks.first ?? String(material.rawText.prefix(200))
-            if let title = try? await modelService.generateTitle(from: titleText) {
+            if let title = try? await modelService.generateTitle(from: titleText), !title.isEmpty {
                 material.title = title
+            } else {
+                // Fallback: use first line or first 50 chars as title
+                let firstLine = material.rawText.components(separatedBy: .newlines)
+                    .first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? ""
+                material.title = String(firstLine.prefix(50))
             }
         }
 
@@ -43,7 +48,7 @@ final class StudyCoordinator {
     // MARK: - Study Session (RAG-powered)
 
     /// Generate questions by retrieving relevant chunks from SwiftData.
-    func generateQuiz(for material: StudyMaterial, context: ModelContext) async {
+    func generateQuiz(for material: StudyMaterial, count: Int = 3, difficulty: DifficultyLevel = .medium, context: ModelContext) async {
         isProcessing = true
         defer { isProcessing = false }
         currentMaterial = material
@@ -53,7 +58,7 @@ final class StudyCoordinator {
         let ragContext = ragService.buildContext(from: chunks)
 
         do {
-            currentQuestions = try await modelService.generateQuestions(context: ragContext)
+            currentQuestions = try await modelService.generateQuestions(context: ragContext, count: count, difficulty: difficulty)
         } catch {
             currentQuestions = []
         }
@@ -83,6 +88,32 @@ final class StudyCoordinator {
         } catch {
             return Feedback(isCorrect: false, explanation: "Unable to evaluate answer.", encouragement: "Keep trying!")
         }
+    }
+
+    // MARK: - Append Content (add more to existing material)
+
+    /// Append new text to an existing material, re-chunk and embed only the new content.
+    func appendContent(_ newText: String, to material: StudyMaterial, context: ModelContext) async {
+        isProcessing = true
+        defer { isProcessing = false }
+
+        // Append to raw text
+        material.rawText += "\n\n" + newText
+
+        // Get current max order for this material's chunks
+        let descriptor = FetchDescriptor<StoredChunk>()
+        let allChunks = (try? context.fetch(descriptor)) ?? []
+        let maxOrder = allChunks.filter { $0.materialID == material.id }.map(\.order).max() ?? -1
+
+        // Chunk and embed only the new text
+        let newChunks = chunkLocally(newText)
+        for (i, text) in newChunks.enumerated() {
+            guard let vector = embeddingService.embed(text) else { continue }
+            let stored = StoredChunk(materialID: material.id, text: text, order: maxOrder + 1 + i, embedding: vector)
+            context.insert(stored)
+        }
+
+        try? context.save()
     }
 
     // MARK: - Study Plan

@@ -7,7 +7,7 @@ struct ContentView: View {
                 HomeView()
             }
             Tab("Study", systemImage: "book") {
-                StudySessionView()
+                MaterialsListView()
             }
             Tab("Progress", systemImage: "chart.bar") {
                 ProgressDashboardView()

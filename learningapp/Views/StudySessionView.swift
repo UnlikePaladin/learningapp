@@ -5,6 +5,7 @@ struct StudySessionView: View {
     var material: StudyMaterial?
 
     enum SessionState {
+        case config
         case idle
         case loading
         case quizzing([Question])
@@ -12,12 +13,15 @@ struct StudySessionView: View {
     }
 
     @Environment(\.modelContext) private var modelContext
-    @State private var state: SessionState = .idle
+    @State private var state: SessionState = .config
     @State private var coordinator = StudyCoordinator()
     @State private var errorMessage: String?
+    @State private var chosenDifficulty: DifficultyLevel = .medium
+    @State private var sessionStart = Date()
 
     private var stateID: String {
         switch state {
+        case .config: "config"
         case .idle: "idle"
         case .loading: "loading"
         case .quizzing: "quizzing"
@@ -29,15 +33,34 @@ struct StudySessionView: View {
         NavigationStack {
             Group {
                 switch state {
+                case .config:
+                    if let material {
+                        QuizConfigView(material: material) { count, difficulty in
+                            startQuiz(count: count, difficulty: difficulty)
+                        }
+                    } else {
+                        idleView
+                    }
                 case .idle:
                     idleView
                 case .loading:
                     loadingView
                 case .quizzing(let questions):
-                    QuizCardView(questions: questions, aiService: FoundationModelService()) { results in
+                    QuizCardView(questions: questions, aiService: FoundationModelService(), difficulty: chosenDifficulty) { results in
                         let correct = results.filter { $0 }.count
+                        let total = results.count
+                        // Save session result for progress tracking
+                        if let materialID = material?.id {
+                            let session = SessionResult(
+                                questionsAnswered: total,
+                                correctCount: correct,
+                                duration: Date().timeIntervalSince(sessionStart),
+                                materialID: materialID
+                            )
+                            coordinator.completeSession(result: session, context: modelContext)
+                        }
                         withAnimation(.easeInOut) {
-                            state = .complete(correct: correct, total: results.count)
+                            state = .complete(correct: correct, total: total)
                         }
                     }
                 case .complete(let correct, let total):
@@ -45,7 +68,6 @@ struct StudySessionView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.3), value: stateID)
-            .padding()
             .navigationTitle("Study Session")
             .alert("Error", isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("OK") {}
@@ -53,7 +75,6 @@ struct StudySessionView: View {
                 Text(errorMessage ?? "")
             }
         }
-        .onAppear { startQuiz() }
     }
 
     private var idleView: some View {
@@ -67,7 +88,7 @@ struct StudySessionView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.5)
-            Text("Generating questions from your material...")
+            Text("Generating questions...")
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -86,26 +107,28 @@ struct StudySessionView: View {
                 .font(.title)
                 .foregroundStyle(correct == total ? .green : .orange)
 
-            Text(correct == total ? "Perfect score! You're doing amazing!" : "Great effort! Every question makes you stronger.")
+            Text(correct == total ? "Perfect score!" : "Great effort! Every question makes you stronger.")
                 .font(.body)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
 
             Button("Study Again") {
-                startQuiz()
+                withAnimation { state = .config }
             }
             .buttonStyle(.borderedProminent)
         }
     }
 
-    private func startQuiz() {
+    private func startQuiz(count: Int, difficulty: DifficultyLevel) {
         guard let material else { return }
+        chosenDifficulty = difficulty
+        sessionStart = Date()
         withAnimation { state = .loading }
         Task {
-            await coordinator.generateQuiz(for: material, context: modelContext)
+            await coordinator.generateQuiz(for: material, count: count, difficulty: difficulty, context: modelContext)
             if coordinator.currentQuestions.isEmpty {
                 errorMessage = "Could not generate questions. Try adding more material."
-                withAnimation { state = .idle }
+                withAnimation { state = .config }
             } else {
                 withAnimation { state = .quizzing(coordinator.currentQuestions) }
             }

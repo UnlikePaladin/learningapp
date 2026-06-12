@@ -74,11 +74,12 @@ final class FoundationModelService {
     // MARK: - Question Generation (RAG-aware)
 
     /// Generate questions from RAG-retrieved context. Context is already token-budget limited.
-    func generateQuestions(context: String, count: Int = 3) async throws -> [Question] {
+    func generateQuestions(context: String, count: Int = 3, difficulty: DifficultyLevel = .medium) async throws -> [Question] {
         let prompt = """
         You are an educational tutor. Generate exactly \(count) active recall questions \
         based ONLY on the following study material. Do NOT add information not present below. \
-        Each question should test understanding of one concept.
+        Each question should test \(difficulty.systemPrompt). \
+        Keep questions clear, concise, and focused on one concept at a time.
 
         Study material:
         \(context)
@@ -113,14 +114,49 @@ final class FoundationModelService {
 
     // MARK: - Answer Evaluation
 
-    func evaluateAnswer(question: Question, userAnswer: String) async throws -> Feedback {
+    func evaluateAnswer(question: Question, userAnswer: String, difficulty: DifficultyLevel = .medium) async throws -> Feedback {
+        // Local pre-check: reject obvious non-answers without wasting a model call
+        let trimmed = userAnswer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let nonAnswers: Set<String> = ["yes", "no", "yeah", "nah", "sure", "ok", "okay", "idk", "maybe", "true", "false", "y", "n"]
+        if nonAnswers.contains(trimmed) || trimmed.count < 3 {
+            return Feedback(
+                isCorrect: false,
+                explanation: "The expected answer is: \(question.expectedAnswer)",
+                encouragement: "Give it another shot — try explaining in your own words!"
+            )
+        }
+
+        let leniency: String
+        switch difficulty {
+        case .easy:
+            leniency = """
+            Leniency: HIGH. Accept answers that capture the main idea even if they miss \
+            details or use informal language. Only mark wrong if the answer shows no \
+            understanding of the concept or is completely off-topic.
+            """
+        case .medium:
+            leniency = """
+            Leniency: MODERATE. Accept answers that demonstrate understanding of the key \
+            concept even if not perfectly worded. Mark wrong if major parts are missing.
+            """
+        case .hard:
+            leniency = """
+            Leniency: LOW. Require the answer to address most key points. Mark wrong if \
+            important details are missing or the answer is vague.
+            """
+        }
+
         let prompt = """
-        You are a supportive tutor. Evaluate this answer. Be lenient — accept answers \
-        that show understanding even if not word-for-word. Celebrate effort.
+        You are a tutor evaluating a student's answer.
+
+        \(leniency)
+
+        In the explanation, briefly state what a complete answer would include.
+        Keep encouragement genuine and brief.
 
         Question: \(question.prompt)
-        Expected: \(question.expectedAnswer)
-        Student answered: \(userAnswer)
+        Expected answer: \(question.expectedAnswer)
+        Student's answer: \(userAnswer)
         """
         let response = try await session.respond(to: prompt, generating: FeedbackResult.self)
         let r = response.content

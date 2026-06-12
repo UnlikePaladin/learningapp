@@ -3,6 +3,7 @@ import SwiftUI
 struct QuizCardView: View {
     let questions: [Question]
     let aiService: FoundationModelService
+    var difficulty: DifficultyLevel = .medium
     var onComplete: ([Bool]) -> Void
 
     @State private var currentIndex = 0
@@ -106,7 +107,7 @@ struct QuizCardView: View {
         isEvaluating = true
         Task {
             do {
-                let fb = try await aiService.evaluateAnswer(question: currentQuestion, userAnswer: userAnswer)
+                let fb = try await aiService.evaluateAnswer(question: currentQuestion, userAnswer: userAnswer, difficulty: difficulty)
                 feedback = fb
                 results.append(fb.isCorrect)
                 if fb.isCorrect { showXP = true }

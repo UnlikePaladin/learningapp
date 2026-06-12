@@ -4,6 +4,7 @@ import SwiftData
 enum SourceType: String, Codable {
     case camera
     case paste
+    case pdf
 }
 
 @Model
