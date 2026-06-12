@@ -35,7 +35,25 @@ struct learningappApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onOpenURL { url in
+                    handleIncomingFile(url)
+                }
         }
         .modelContainer(sharedModelContainer)
+    }
+
+    /// Called when the OS hands us a `.studypack` file (AirDrop receive, "Open in" from
+    /// Files / Mail / Messages, etc.). Decodes and imports as a new lesson.
+    @MainActor
+    private func handleIncomingFile(_ url: URL) {
+        guard url.pathExtension.lowercased() == "studypack" else { return }
+        do {
+            let pack = try StudyPackService.read(from: url)
+            StudyPackService.importPack(pack, into: sharedModelContainer.mainContext)
+        } catch {
+            // Surfacing this requires UI plumbing; for now log and bail.
+            // The user can also import via the Lessons tab → menu → Import Study Pack.
+            print("Study pack import failed: \(error.localizedDescription)")
+        }
     }
 }

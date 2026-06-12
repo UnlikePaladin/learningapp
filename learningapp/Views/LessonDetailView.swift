@@ -85,13 +85,26 @@ struct LessonDetailView: View {
         .navigationTitle(lesson.title.isEmpty ? "Lesson" : lesson.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            Menu {
-                Button("Rename Lesson", systemImage: "pencil") {
-                    renameText = lesson.title
-                    showingRename = true
+            ToolbarItem(placement: .primaryAction) {
+                ShareLink(
+                    item: StudyPackFile(pack: StudyPackService.makeExport(for: lesson, context: modelContext)),
+                    preview: SharePreview(
+                        lesson.title.isEmpty ? "Lesson" : lesson.title,
+                        image: Image(systemName: "book.fill")
+                    )
+                ) {
+                    Image(systemName: "square.and.arrow.up")
                 }
-            } label: {
-                Image(systemName: "ellipsis.circle")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Rename Lesson", systemImage: "pencil") {
+                        renameText = lesson.title
+                        showingRename = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
             }
         }
         .alert("Rename Lesson", isPresented: $showingRename) {

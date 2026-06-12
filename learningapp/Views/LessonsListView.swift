@@ -1,5 +1,7 @@
 import SwiftUI
+import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct LessonsListView: View {
     @Query(sort: \Lesson.dateCreated, order: .reverse) private var lessons: [Lesson]
@@ -8,6 +10,8 @@ struct LessonsListView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var showingInput = false
+    @State private var showingFileImporter = false
+    @State private var importErrorMessage: String? = nil
     @State private var coordinator = StudyCoordinator()
 
     private let cardColors: [Color] = [
@@ -45,10 +49,44 @@ struct LessonsListView: View {
             .navigationTitle("Lessons")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add Lesson", systemImage: "plus") {
-                        showingInput = true
+                    Menu {
+                        Button("Add Lesson", systemImage: "plus") {
+                            showingInput = true
+                        }
+                        Button("Import Study Pack", systemImage: "square.and.arrow.down") {
+                            showingFileImporter = true
+                        }
+                    } label: {
+                        Image(systemName: "plus")
                     }
                 }
+            }
+            .fileImporter(
+                isPresented: $showingFileImporter,
+                allowedContentTypes: [.studyPack, .json]
+            ) { result in
+                switch result {
+                case .success(let url):
+                    do {
+                        let pack = try StudyPackService.read(from: url)
+                        StudyPackService.importPack(pack, into: modelContext)
+                    } catch {
+                        importErrorMessage = error.localizedDescription
+                    }
+                case .failure(let error):
+                    importErrorMessage = error.localizedDescription
+                }
+            }
+            .alert(
+                "Couldn't Import",
+                isPresented: .init(
+                    get: { importErrorMessage != nil },
+                    set: { if !$0 { importErrorMessage = nil } }
+                )
+            ) {
+                Button("OK") {}
+            } message: {
+                Text(importErrorMessage ?? "")
             }
             .sheet(isPresented: $showingInput) {
                 ContentInputView { rawText, sourceType, fileName in
