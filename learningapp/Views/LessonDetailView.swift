@@ -23,18 +23,22 @@ struct LessonDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                // Quiz button - quiz the whole lesson
                 Button {
                     startingQuiz = QuizScope(kind: .lesson(lesson), title: lesson.title)
                 } label: {
-                    Label("Quiz This Lesson", systemImage: "play.fill")
-                        .font(.title3.bold())
-                        .frame(maxWidth: .infinity, minHeight: 56)
+                    HStack(spacing: 10) {
+                        Image(systemName: "play.fill")
+                            .font(.title3)
+                        Text("Quiz This Lesson")
+                            .font(.title3.bold())
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .foregroundStyle(.white)
+                    .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 16))
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
 
-                // Modules
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text("Modules")
                         .font(.headline)
                     if lessonModules.isEmpty {
@@ -48,8 +52,7 @@ struct LessonDetailView: View {
                     }
                 }
 
-                // Sources
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Text("Sources")
                             .font(.headline)
@@ -129,34 +132,47 @@ struct LessonDetailView: View {
         NavigationLink {
             ModuleContentView(lesson: lesson, module: module)
         } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(module.title)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(.tertiary)
-                        .font(.caption)
+            VStack(alignment: .leading, spacing: 0) {
+                Rectangle()
+                    .fill(Color("Darkgreen"))
+                    .frame(height: 3)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(module.title)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.tertiary)
+                            .font(.caption)
+                    }
+                    if !module.summary.isEmpty {
+                        Text(module.summary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                    }
                 }
-                if !module.summary.isEmpty {
-                    Text(module.summary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }
 
     private func sourceRow(_ source: Source) -> some View {
         HStack {
-            Image(systemName: iconForSource(source.sourceType))
-                .foregroundStyle(.blue)
+            ZStack {
+                Circle()
+                    .fill(Color("Darkgreen").opacity(0.12))
+                    .frame(width: 32, height: 32)
+                Image(systemName: iconForSource(source.sourceType))
+                    .font(.caption)
+                    .foregroundStyle(Color("Darkgreen"))
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(source.fileName ?? sourceLabel(source.sourceType))
                     .font(.caption)
@@ -167,8 +183,8 @@ struct LessonDetailView: View {
             }
             Spacer()
         }
-        .padding(8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .padding(10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func iconForSource(_ type: SourceType) -> String {

@@ -11,35 +11,43 @@ struct HomeView: View {
 
     private var recentLessons: [Lesson] { Array(lessons.prefix(3)) }
 
+    private let cardColors: [Color] = [
+        Color("Orange"), Color("Lightgreen"), Color("Red"), Color("Yellow"), Color("Darkgreen")
+    ]
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Header
                     HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("Ready to learn?")
                                 .font(.largeTitle.bold())
                             Text("Small steps lead to big results.")
-                                .font(.title3)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
                         StreakBadgeView()
                     }
+                    .padding(.top, 4)
 
-                    // Quick add
                     Button {
                         showingInput = true
                     } label: {
-                        Label("Add New Lesson", systemImage: "plus.circle.fill")
-                            .font(.title3.bold())
-                            .frame(maxWidth: .infinity, minHeight: 56)
+                        HStack(spacing: 10) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                            Text("Add New Lesson")
+                                .font(.title3.bold())
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                        .foregroundStyle(.white)
+                        .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 16))
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.plain)
 
-                    // Recent lessons
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text("Recent Lessons")
                             .font(.headline)
                         if recentLessons.isEmpty {
@@ -49,11 +57,11 @@ struct HomeView: View {
                                 description: Text("Tap above to create your first lesson.")
                             )
                         } else {
-                            ForEach(recentLessons) { lesson in
+                            ForEach(Array(recentLessons.enumerated()), id: \.element.id) { index, lesson in
                                 NavigationLink {
                                     LessonDetailView(lesson: lesson)
                                 } label: {
-                                    lessonRow(lesson)
+                                    lessonCard(lesson, accent: cardColors[index % cardColors.count])
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -91,25 +99,36 @@ struct HomeView: View {
         }
     }
 
-    private func lessonRow(_ lesson: Lesson) -> some View {
-        HStack {
-            Image(systemName: "book.fill")
-                .foregroundStyle(.blue)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(lesson.title.isEmpty ? "Untitled" : lesson.title)
-                    .font(.subheadline.bold())
-                    .lineLimit(1)
-                Text(lesson.dateCreated, format: .relative(presentation: .named))
+    private func lessonCard(_ lesson: Lesson, accent: Color) -> some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(accent)
+                .frame(width: 4)
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(lesson.title.isEmpty ? "Untitled" : lesson.title)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(lesson.dateCreated, format: .relative(presentation: .named))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.tertiary)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .foregroundStyle(.tertiary)
-                .font(.caption)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 12)
         }
-        .padding(12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(accent.opacity(0.2), lineWidth: 1)
+        )
     }
 }
 

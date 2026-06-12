@@ -38,20 +38,17 @@ struct ProgressDashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    // Streak & XP header
-                    HStack(spacing: 20) {
-                        statCard(icon: "flame.fill", color: .orange, value: "\(streak)", label: "Day Streak")
-                        statCard(icon: "star.fill", color: .purple, value: "\(xp)", label: "XP Earned")
+                VStack(spacing: 20) {
+                    HStack(spacing: 14) {
+                        statCard(icon: "flame.fill", color: Color("Orange"), value: "\(streak)", label: "Day Streak")
+                        statCard(icon: "star.fill", color: Color("Lightgreen"), value: "\(xp)", label: "XP Earned")
                     }
 
-                    // Accuracy & Questions
-                    HStack(spacing: 20) {
-                        statCard(icon: "checkmark.circle.fill", color: .green, value: String(format: "%.0f%%", accuracy), label: "Accuracy")
-                        statCard(icon: "questionmark.circle.fill", color: .blue, value: "\(totalQuestions)", label: "Questions")
+                    HStack(spacing: 14) {
+                        statCard(icon: "checkmark.circle.fill", color: Color("Darkgreen"), value: String(format: "%.0f%%", accuracy), label: "Accuracy")
+                        statCard(icon: "questionmark.circle.fill", color: Color("Red"), value: "\(totalQuestions)", label: "Questions")
                     }
 
-                    // 7-day chart
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Last 7 Days")
                             .font(.headline)
@@ -61,8 +58,8 @@ struct ProgressDashboardView: View {
                                 x: .value("Day", item.date, unit: .day),
                                 y: .value("Questions", item.count)
                             )
-                            .foregroundStyle(.blue.gradient)
-                            .cornerRadius(4)
+                            .foregroundStyle(Color("Lightgreen").gradient)
+                            .cornerRadius(6)
                         }
                         .chartXAxis {
                             AxisMarks(values: .stride(by: .day)) { _ in
@@ -76,7 +73,11 @@ struct ProgressDashboardView: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
 
                     if sessions.isEmpty {
-                        ContentUnavailableView("No sessions yet", systemImage: "chart.bar", description: Text("Complete a study session to see your progress here."))
+                        ContentUnavailableView(
+                            "No sessions yet",
+                            systemImage: "chart.bar",
+                            description: Text("Complete a study session to see your progress here.")
+                        )
                     }
                 }
                 .padding()
@@ -86,18 +87,28 @@ struct ProgressDashboardView: View {
     }
 
     private func statCard(icon: String, color: Color, value: String, label: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(color)
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 46, height: 46)
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(color)
+            }
             Text(value)
                 .font(.title.bold())
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, minHeight: 100)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .frame(maxWidth: .infinity, minHeight: 110)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(color.opacity(0.2), lineWidth: 1)
+        )
     }
 }
 
