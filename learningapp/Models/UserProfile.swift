@@ -13,6 +13,8 @@ final class UserProfile {
     /// Selected interest tags (e.g., "Math", "Algebra").
     var interests: [String]
     var dateCreated: Date
+    /// Composite avatar image (giraffe + background color) saved as PNG data.
+    var avatarBlob: Data?
 
     init(
         id: UUID = UUID(),
@@ -20,7 +22,8 @@ final class UserProfile {
         avatarID: String = "happy_giraffe",
         avatarBackground: String = "white",
         interests: [String] = [],
-        dateCreated: Date = Date()
+        dateCreated: Date = Date(),
+        avatarBlob: Data? = nil
     ) {
         self.id = id
         self.nickname = nickname
@@ -28,6 +31,7 @@ final class UserProfile {
         self.avatarBackground = avatarBackground
         self.interests = interests
         self.dateCreated = dateCreated
+        self.avatarBlob = avatarBlob
     }
 }
 

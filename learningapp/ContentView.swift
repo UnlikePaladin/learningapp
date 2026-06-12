@@ -1,15 +1,22 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(AuthService.self) private var auth
     @State private var showSplash = true
     @State private var showChat = false
 
     var body: some View {
         ZStack {
-            if FoundationModelService.isAvailable {
-                mainTabs
+            if auth.isAuthenticated {
+                if auth.needsOnboarding {
+                    OnboardingView()
+                } else if FoundationModelService.isAvailable {
+                    mainTabs
+                } else {
+                    unavailableView
+                }
             } else {
-                unavailableView
+                LoginView()
             }
 
             if showSplash {
@@ -85,4 +92,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environment(AuthService())
 }

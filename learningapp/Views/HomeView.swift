@@ -18,80 +18,83 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Ready to learn?")
-                                .font(.largeTitle.bold())
-                            Text("Small steps lead to big results.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        StreakBadgeView()
-                    }
-                    .padding(.top, 4)
-
-                    Button {
-                        showingInput = true
-                    } label: {
-                        HStack(spacing: 14) {
-                            ZStack {
-                                Circle()
-                                    .fill(.white.opacity(0.2))
-                                    .frame(width: 48, height: 48)
-                                Image(systemName: "plus")
-                                    .font(.title2.bold())
-                                    .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Button {
+                            showingInput = true
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(.white.opacity(0.2))
+                                        .frame(width: 48, height: 48)
+                                    Image(systemName: "plus")
+                                        .font(.title2.bold())
+                                        .foregroundStyle(.white)
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("Add New Lesson")
+                                        .font(.title3.bold())
+                                        .foregroundStyle(.white)
+                                    Text("Paste text, scan, or import PDF")
+                                        .font(.caption)
+                                        .foregroundStyle(.white.opacity(0.75))
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.right")
+                                    .foregroundStyle(.white.opacity(0.7))
                             }
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Add New Lesson")
-                                    .font(.title3.bold())
-                                    .foregroundStyle(.white)
-                                Text("Paste text, scan, or import PDF")
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.75))
-                            }
-                            Spacer()
-                            Image(systemName: "arrow.right")
-                                .foregroundStyle(.white.opacity(0.7))
+                            .padding(18)
+                            .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 20))
                         }
-                        .padding(18)
-                        .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 20))
-                    }
-                    .buttonStyle(.plain)
+                        .buttonStyle(.plain)
 
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("Recent Lessons")
-                            .font(.headline)
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Recent Lessons")
+                                .font(.headline)
 
-                        if recentLessons.isEmpty {
-                            ContentUnavailableView(
-                                "No lessons yet",
-                                systemImage: "book.closed",
-                                description: Text("Tap above to create your first lesson.")
-                            )
-                        } else {
-                            LazyVGrid(
-                                columns: [GridItem(.flexible()), GridItem(.flexible())],
-                                spacing: 14
-                            ) {
-                                ForEach(Array(recentLessons.enumerated()), id: \.element.id) { index, lesson in
-                                    NavigationLink {
-                                        LessonDetailView(lesson: lesson)
-                                    } label: {
-                                        lessonTile(lesson, color: tileColors[index % tileColors.count])
+                            if recentLessons.isEmpty {
+                                ContentUnavailableView(
+                                    "No lessons yet",
+                                    systemImage: "book.closed",
+                                    description: Text("Tap above to create your first lesson.")
+                                )
+                            } else {
+                                LazyVGrid(
+                                    columns: [GridItem(.flexible()), GridItem(.flexible())],
+                                    spacing: 14
+                                ) {
+                                    ForEach(Array(recentLessons.enumerated()), id: \.element.id) { index, lesson in
+                                        NavigationLink {
+                                            LessonDetailView(lesson: lesson)
+                                        } label: {
+                                            lessonTile(lesson, color: tileColors[index % tileColors.count])
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
                                 }
                             }
                         }
                     }
+                    .padding()
                 }
-                .padding()
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                GiraffeBannerView(
+                    title: "¡Listo para Aprender!",
+                    subtitle: "Pequeños pasos, grandes resultados",
+                    giraffeImage: "clear_happy_giraffe"
+                )
             }
             .background(Color("Darkgreen").opacity(0.05).ignoresSafeArea())
-            .navigationTitle("Home")
+            .navigationTitle("")
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    StreakBadgeView()
+                }
+            }
             .sheet(isPresented: $showingInput) {
                 ContentInputView { rawText, sourceType, fileName in
                     Task {

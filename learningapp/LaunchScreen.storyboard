@@ -21,9 +21,9 @@
                                 <color key="backgroundColor" name="Light"/>
                                 <color key="tintColor" name="Dark"/>
                             </imageView>
-                            <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Lerny" textAlignment="center" lineBreakMode="middleTruncation" baselineAdjustment="alignBaselines" minimumFontSize="18" translatesAutoresizingMaskIntoConstraints="NO" id="GJd-Yh-RWb">
-                                <rect key="frame" x="22" y="156" width="370" height="70"/>
-                                <fontDescription key="fontDescription" name="Georgia" family="Georgia" pointSize="61"/>
+                            <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" misplaced="YES" text="lerny" textAlignment="center" lineBreakMode="middleTruncation" baselineAdjustment="alignBaselines" minimumFontSize="18" translatesAutoresizingMaskIntoConstraints="NO" id="GJd-Yh-RWb">
+                                <rect key="frame" x="25" y="133" width="370" height="101.33333333333331"/>
+                                <fontDescription key="fontDescription" name="Georgia-Bold" family="Georgia" pointSize="89"/>
                                 <color key="textColor" name="Contrast"/>
                                 <nil key="highlightedColor"/>
                             </label>

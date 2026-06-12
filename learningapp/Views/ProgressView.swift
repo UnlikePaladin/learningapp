@@ -8,8 +8,17 @@ struct ProgressDashboardView: View {
                 ProgressDashboardContent()
                     .padding()
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                GiraffeBannerView(
+                    title: "Mi Progreso",
+                    subtitle: "¡Sigue así!",
+                    giraffeImage: "clear_happy_giraffe"
+                )
+            }
             .background(Color("Darkgreen").opacity(0.05).ignoresSafeArea())
-            .navigationTitle("Progress")
+            .navigationTitle("")
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 }

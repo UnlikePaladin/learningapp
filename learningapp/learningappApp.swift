@@ -1,8 +1,11 @@
 import SwiftUI
 import SwiftData
+import FirebaseCore
 
 @main
 struct learningappApp: App {
+    @State private var authService: AuthService
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Lesson.self,
@@ -20,7 +23,6 @@ struct learningappApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            // Schema changed during development — wipe old store and retry
             let url = modelConfiguration.url
             try? FileManager.default.removeItem(at: url)
             try? FileManager.default.removeItem(at: url.deletingPathExtension().appendingPathExtension("store-shm"))
@@ -33,9 +35,15 @@ struct learningappApp: App {
         }
     }()
 
+    init() {
+        FirebaseApp.configure()          // must run first
+        _authService = State(initialValue: AuthService())
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(authService)
                 .onOpenURL { url in
                     handleIncomingFile(url)
                 }
@@ -43,8 +51,6 @@ struct learningappApp: App {
         .modelContainer(sharedModelContainer)
     }
 
-    /// Called when the OS hands us a `.studypack` file (AirDrop receive, "Open in" from
-    /// Files / Mail / Messages, etc.). Decodes and imports as a new lesson.
     @MainActor
     private func handleIncomingFile(_ url: URL) {
         guard url.pathExtension.lowercased() == "studypack" else { return }
@@ -52,8 +58,6 @@ struct learningappApp: App {
             let pack = try StudyPackService.read(from: url)
             StudyPackService.importPack(pack, into: sharedModelContainer.mainContext)
         } catch {
-            // Surfacing this requires UI plumbing; for now log and bail.
-            // The user can also import via the Lessons tab → menu → Import Study Pack.
             print("Study pack import failed: \(error.localizedDescription)")
         }
     }

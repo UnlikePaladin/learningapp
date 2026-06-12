@@ -46,7 +46,16 @@ struct LessonsListView: View {
                     .background(Color("Darkgreen").opacity(0.05).ignoresSafeArea())
                 }
             }
-            .navigationTitle("Lessons")
+            .safeAreaInset(edge: .top, spacing: 0) {
+                GiraffeBannerView(
+                    title: "My Lessons",
+                    subtitle: "Your study library",
+                    giraffeImage: "question_giraffe"
+                )
+            }
+            .navigationTitle("")
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {

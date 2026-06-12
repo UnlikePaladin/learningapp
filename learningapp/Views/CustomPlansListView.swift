@@ -59,7 +59,16 @@ struct CustomPlansListView: View {
                     .background(Color("Darkgreen").opacity(0.05).ignoresSafeArea())
                 }
             }
-            .navigationTitle("Plans")
+            .safeAreaInset(edge: .top, spacing: 0) {
+                GiraffeBannerView(
+                    title: "Study Plans",
+                    subtitle: "Organized learning",
+                    giraffeImage: "normal_giraffe"
+                )
+            }
+            .navigationTitle("")
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button("New Plan", systemImage: "plus") {

@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		64115DAA2FDC86BB00EDD9C8 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 64115DA92FDC86BB00EDD9C8 /* FirebaseAuth */; };
+		64115EA02FDC89D000EDD9C8 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 64115E9F2FDC89D000EDD9C8 /* FirebaseFirestore */; };
+		64115F312FDC8F6600EDD9C8 /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 64115DAB2FDC86BB00EDD9C8 /* FirebaseDatabase */; };
 		649B068D2FDC03CE00B2CB3D /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 649B068C2FDC03CE00B2CB3D /* MLXLLM */; };
 /* End PBXBuildFile section */
 
@@ -40,7 +43,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				64115F312FDC8F6600EDD9C8 /* FirebaseDatabase in Frameworks */,
 				649B068D2FDC03CE00B2CB3D /* MLXLLM in Frameworks */,
+				64115DAA2FDC86BB00EDD9C8 /* FirebaseAuth in Frameworks */,
+				64115EA02FDC89D000EDD9C8 /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -51,6 +57,7 @@
 			isa = PBXGroup;
 			children = (
 				3A2EB4732FDB9C87006EDC74 /* learningapp */,
+				64115E9E2FDC89D000EDD9C8 /* Frameworks */,
 				3A2EB4722FDB9C87006EDC74 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -61,6 +68,13 @@
 				3A2EB4712FDB9C87006EDC74 /* learningapp.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		64115E9E2FDC89D000EDD9C8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -84,6 +98,9 @@
 			name = learningapp;
 			packageProductDependencies = (
 				649B068C2FDC03CE00B2CB3D /* MLXLLM */,
+				64115DA92FDC86BB00EDD9C8 /* FirebaseAuth */,
+				64115DAB2FDC86BB00EDD9C8 /* FirebaseDatabase */,
+				64115E9F2FDC89D000EDD9C8 /* FirebaseFirestore */,
 			);
 			productName = learningapp;
 			productReference = 3A2EB4712FDB9C87006EDC74 /* learningapp.app */;
@@ -115,6 +132,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				649B068B2FDC03CE00B2CB3D /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+				64115DA82FDC86BB00EDD9C8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3A2EB4722FDB9C87006EDC74 /* Products */;
@@ -369,6 +387,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		64115DA82FDC86BB00EDD9C8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.14.0;
+			};
+		};
 		649B068B2FDC03CE00B2CB3D /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
@@ -380,6 +406,21 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		64115DA92FDC86BB00EDD9C8 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 64115DA82FDC86BB00EDD9C8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		64115DAB2FDC86BB00EDD9C8 /* FirebaseDatabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 64115DA82FDC86BB00EDD9C8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseDatabase;
+		};
+		64115E9F2FDC89D000EDD9C8 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 64115DA82FDC86BB00EDD9C8 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
 		649B068C2FDC03CE00B2CB3D /* MLXLLM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 649B068B2FDC03CE00B2CB3D /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;

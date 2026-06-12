@@ -5,10 +5,18 @@
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 
+	<!-- Google Sign-In: reversed client ID must be registered as a URL scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.278811569600-sa3m0r4g81glj9aeojv3m0flo341jftt</string>
+			</array>
+		</dict>
+	</array>
+
 	<!-- Custom Study Pack file type -->
-	<!-- Exported because this app is the canonical source of .studypack files. -->
-	<!-- Conforms to public.json (payload format), public.data (so Finder/Files recognize -->
-	<!-- the file), and public.content (so the type can be shared via AirDrop). -->
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -36,7 +44,6 @@
 		</dict>
 	</array>
 
-	<!-- Document type registration: tells iOS this app handles .studypack files. -->
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
