@@ -4,29 +4,74 @@ import SwiftData
 @Observable
 final class StudyCoordinator {
     var currentMaterial: StudyMaterial?
-    var chunks: [Chunk] = []
     var currentQuestions: [Question] = []
     var isProcessing = false
     var currentPlan: StudyPlan?
 
     private let modelService = FoundationModelService()
+    private let ragService = RAGService()
+    private let embeddingService = EmbeddingService()
 
-    func processMaterial(_ material: StudyMaterial) async {
+    // MARK: - Ingestion (called when user adds new material)
+
+    /// Chunk text locally, embed each chunk, store in SwiftData, generate title.
+    func ingestMaterial(_ material: StudyMaterial, context: ModelContext) async {
+        isProcessing = true
+        defer { isProcessing = false }
+
+        // 1. Local chunking — split by paragraphs, no AI needed
+        let rawChunks = chunkLocally(material.rawText)
+
+        // 2. Embed and store each chunk
+        for (i, text) in rawChunks.enumerated() {
+            guard let vector = embeddingService.embed(text) else { continue }
+            let stored = StoredChunk(materialID: material.id, text: text, order: i, embedding: vector)
+            context.insert(stored)
+        }
+
+        // 3. Generate a title from the first chunk
+        if material.title.isEmpty {
+            let titleText = rawChunks.first ?? String(material.rawText.prefix(200))
+            if let title = try? await modelService.generateTitle(from: titleText) {
+                material.title = title
+            }
+        }
+
+        try? context.save()
+    }
+
+    // MARK: - Study Session (RAG-powered)
+
+    /// Generate questions by retrieving relevant chunks from SwiftData.
+    func generateQuiz(for material: StudyMaterial, context: ModelContext) async {
         isProcessing = true
         defer { isProcessing = false }
         currentMaterial = material
+
+        let topic = material.title.isEmpty ? String(material.rawText.prefix(100)) : material.title
+        let chunks = ragService.retrieveRelevantChunks(query: topic, from: context, materialID: material.id)
+        let ragContext = ragService.buildContext(from: chunks)
+
         do {
-            chunks = try await modelService.chunkText(material.rawText)
+            currentQuestions = try await modelService.generateQuestions(context: ragContext)
         } catch {
-            chunks = []
+            currentQuestions = []
         }
     }
 
-    func generateQuiz(for chunk: Chunk) async {
+    /// Generate adaptive questions using performance history.
+    func generateAdaptiveQuiz(for material: StudyMaterial, sessions: [SessionResult], context: ModelContext) async {
         isProcessing = true
         defer { isProcessing = false }
+        currentMaterial = material
+
+        let topic = material.title.isEmpty ? String(material.rawText.prefix(100)) : material.title
+        let chunks = ragService.retrieveRelevantChunks(query: topic, from: context, materialID: material.id)
+        let ragContext = ragService.buildContext(from: chunks)
+
         do {
-            currentQuestions = try await modelService.generateQuestions(from: chunk)
+            currentQuestions = try await modelService.generateAdaptiveQuestions(
+                context: ragContext, performanceHistory: sessions)
         } catch {
             currentQuestions = []
         }
@@ -40,13 +85,15 @@ final class StudyCoordinator {
         }
     }
 
+    // MARK: - Study Plan
+
     func generateAndSchedulePlan(context: ModelContext) async {
         isProcessing = true
         defer { isProcessing = false }
         let materials = PersistenceService.fetchAll(context: context)
         let sessions = PersistenceService.fetchRecentSessions(limit: 10, context: context)
         do {
-            let plan = try await modelService.generateStudyPlan(materials: materials, recentSessions: sessions)
+            let plan = try await modelService.generateStudyPlan(materials: materials, sessions: sessions)
             currentPlan = plan
             for (index, item) in plan.items.enumerated() {
                 guard let material = materials.first(where: { $0.id == item.materialID }) else { continue }
@@ -69,5 +116,31 @@ final class StudyCoordinator {
             for: StudyMaterial(id: result.materialID, rawText: "", sourceType: .paste),
             at: schedule.nextReviewDate
         )
+    }
+
+    // MARK: - Local Chunking (no AI, just text splitting)
+
+    /// Split text into ~300-500 char chunks by paragraph boundaries.
+    private func chunkLocally(_ text: String) -> [String] {
+        let cleaned = text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .filter { line in
+                !line.hasPrefix("_Image") && !line.hasPrefix("[^") && !line.hasPrefix("![")
+            }
+
+        // Group paragraphs into chunks of ~400 chars
+        var chunks: [String] = []
+        var current = ""
+        for para in cleaned {
+            if current.count + para.count > 400 && !current.isEmpty {
+                chunks.append(current)
+                current = para
+            } else {
+                current += current.isEmpty ? para : "\n" + para
+            }
+        }
+        if !current.isEmpty { chunks.append(current) }
+        return chunks
     }
 }

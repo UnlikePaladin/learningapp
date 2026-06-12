@@ -3,8 +3,11 @@ import SwiftData
 
 struct HomeView: View {
     @Query(sort: \StudyMaterial.dateAdded, order: .reverse) private var materials: [StudyMaterial]
+    @Environment(\.modelContext) private var modelContext
     @State private var showingInput = false
     @State private var selectedMaterial: StudyMaterial?
+    @State private var isIngesting = false
+    @State private var coordinator = StudyCoordinator()
 
     var body: some View {
         NavigationStack {
@@ -72,8 +75,25 @@ struct HomeView: View {
             .navigationTitle("Home")
             .sheet(isPresented: $showingInput) {
                 ContentInputView(onSave: { material in
-                    selectedMaterial = material
+                    isIngesting = true
+                    Task {
+                        await coordinator.ingestMaterial(material, context: modelContext)
+                        isIngesting = false
+                        selectedMaterial = material
+                    }
                 })
+            }
+            .overlay {
+                if isIngesting {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Processing material...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(24)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                }
             }
             .navigationDestination(item: $selectedMaterial) { material in
                 StudySessionView(material: material)
@@ -86,7 +106,7 @@ struct HomeView: View {
             Image(systemName: material.sourceType == .camera ? "camera.fill" : "doc.text.fill")
                 .foregroundStyle(.blue)
             VStack(alignment: .leading, spacing: 2) {
-                Text(material.rawText.prefix(60) + (material.rawText.count > 60 ? "..." : ""))
+                Text(material.title.isEmpty ? String(material.rawText.prefix(60)) : material.title)
                     .font(.subheadline)
                     .lineLimit(1)
                 Text(material.dateAdded, style: .relative)

@@ -10,14 +10,33 @@ enum SourceType: String, Codable {
 final class StudyMaterial {
     @Attribute(.unique) var id: UUID
     var rawText: String
+    var title: String
     var sourceType: SourceType
     var dateAdded: Date
 
-    init(id: UUID = UUID(), rawText: String, sourceType: SourceType, dateAdded: Date = Date()) {
+    init(id: UUID = UUID(), rawText: String, title: String = "", sourceType: SourceType, dateAdded: Date = Date()) {
         self.id = id
         self.rawText = rawText
+        self.title = title
         self.sourceType = sourceType
         self.dateAdded = dateAdded
+    }
+}
+
+@Model
+final class StoredChunk {
+    @Attribute(.unique) var id: UUID
+    var materialID: UUID
+    var text: String
+    var order: Int
+    var embedding: [Double]
+
+    init(id: UUID = UUID(), materialID: UUID, text: String, order: Int, embedding: [Double]) {
+        self.id = id
+        self.materialID = materialID
+        self.text = text
+        self.order = order
+        self.embedding = embedding
     }
 }
 

@@ -3,6 +3,7 @@ import SwiftData
 
 struct StudyPlanView: View {
     @Query(sort: \StudyMaterial.dateAdded, order: .reverse) private var materials: [StudyMaterial]
+    @Query(sort: \SessionResult.date, order: .reverse) private var sessions: [SessionResult]
     @State private var plan: StudyPlan?
     @State private var isLoading = false
     @State private var selectedMaterial: StudyMaterial?
@@ -98,7 +99,7 @@ struct StudyPlanView: View {
         isLoading = true
         Task {
             do {
-                let result = try await aiService.generateStudyPlan(materials: materials)
+                let result = try await aiService.generateStudyPlan(materials: materials, sessions: sessions)
                 plan = result
             } catch {
                 plan = nil

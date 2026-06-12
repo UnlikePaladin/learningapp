@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct StudySessionView: View {
     var material: StudyMaterial?
@@ -6,20 +7,19 @@ struct StudySessionView: View {
     enum SessionState {
         case idle
         case loading
-        case reviewing([Chunk])
         case quizzing([Question])
         case complete(correct: Int, total: Int)
     }
 
+    @Environment(\.modelContext) private var modelContext
     @State private var state: SessionState = .idle
-    @State private var aiService = FoundationModelService()
+    @State private var coordinator = StudyCoordinator()
     @State private var errorMessage: String?
 
     private var stateID: String {
         switch state {
         case .idle: "idle"
         case .loading: "loading"
-        case .reviewing: "reviewing"
         case .quizzing: "quizzing"
         case .complete: "complete"
         }
@@ -33,10 +33,8 @@ struct StudySessionView: View {
                     idleView
                 case .loading:
                     loadingView
-                case .reviewing(let chunks):
-                    reviewingView(chunks)
                 case .quizzing(let questions):
-                    QuizCardView(questions: questions, aiService: aiService) { results in
+                    QuizCardView(questions: questions, aiService: FoundationModelService()) { results in
                         let correct = results.filter { $0 }.count
                         withAnimation(.easeInOut) {
                             state = .complete(correct: correct, total: results.count)
@@ -55,7 +53,7 @@ struct StudySessionView: View {
                 Text(errorMessage ?? "")
             }
         }
-        .onAppear { startIfNeeded() }
+        .onAppear { startQuiz() }
     }
 
     private var idleView: some View {
@@ -69,22 +67,9 @@ struct StudySessionView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.5)
-            Text("Breaking down your material...")
+            Text("Generating questions from your material...")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-        }
-    }
-
-    private func reviewingView(_ chunks: [Chunk]) -> some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                FocusTimerView()
-                ForEach(chunks) { chunk in
-                    ChunkView(chunk: chunk) {
-                        startQuiz(for: chunk)
-                    }
-                }
-            }
         }
     }
 
@@ -107,35 +92,22 @@ struct StudySessionView: View {
                 .foregroundStyle(.secondary)
 
             Button("Study Again") {
-                startIfNeeded()
+                startQuiz()
             }
             .buttonStyle(.borderedProminent)
         }
     }
 
-    private func startIfNeeded() {
+    private func startQuiz() {
         guard let material else { return }
         withAnimation { state = .loading }
         Task {
-            do {
-                let chunks = try await aiService.chunkText(material.rawText)
-                withAnimation { state = .reviewing(chunks) }
-            } catch {
-                errorMessage = error.localizedDescription
+            await coordinator.generateQuiz(for: material, context: modelContext)
+            if coordinator.currentQuestions.isEmpty {
+                errorMessage = "Could not generate questions. Try adding more material."
                 withAnimation { state = .idle }
-            }
-        }
-    }
-
-    private func startQuiz(for chunk: Chunk) {
-        withAnimation { state = .loading }
-        Task {
-            do {
-                let questions = try await aiService.generateQuestions(from: chunk)
-                withAnimation { state = .quizzing(questions) }
-            } catch {
-                errorMessage = error.localizedDescription
-                withAnimation { state = .reviewing([chunk]) }
+            } else {
+                withAnimation { state = .quizzing(coordinator.currentQuestions) }
             }
         }
     }
