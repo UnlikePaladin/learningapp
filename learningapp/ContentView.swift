@@ -1,28 +1,64 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var showSplash = true
+    @State private var showChat = false
+
     var body: some View {
-        if FoundationModelService.isAvailable {
-            mainTabs
-        } else {
-            unavailableView
+        ZStack {
+            if FoundationModelService.isAvailable {
+                mainTabs
+            } else {
+                unavailableView
+            }
+
+            if showSplash {
+                SplashView()
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(1.8))
+            withAnimation(.easeOut(duration: 0.45)) {
+                showSplash = false
+            }
         }
     }
 
     private var mainTabs: some View {
-        TabView {
-            Tab("Home", systemImage: "house") {
-                HomeView()
+        ZStack(alignment: .bottomTrailing) {
+            TabView {
+                Tab("Home", systemImage: "house") {
+                    HomeView()
+                }
+                Tab("Lessons", systemImage: "book") {
+                    LessonsListView()
+                }
+                Tab("Plans", systemImage: "list.clipboard") {
+                    CustomPlansListView()
+                }
+                Tab("Progress", systemImage: "chart.bar") {
+                    ProgressDashboardView()
+                }
             }
-            Tab("Lessons", systemImage: "book") {
-                LessonsListView()
+
+            Button {
+                showChat = true
+            } label: {
+                Image("normal_giraffe")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
+                    .padding(14)
+                    .background(Color("Darkgreen"), in: Circle())
+                    .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
             }
-            Tab("Plans", systemImage: "list.clipboard") {
-                CustomPlansListView()
-            }
-            Tab("Progress", systemImage: "chart.bar") {
-                ProgressDashboardView()
-            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 84)
+        }
+        .sheet(isPresented: $showChat) {
+            GiraffeChatView()
         }
     }
 
