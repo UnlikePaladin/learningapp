@@ -3,6 +3,9 @@ import SwiftUI
 enum QuizMode {
     case classic
     case block
+    case blockInfinite
+    case boss
+    case blitz
 }
 
 enum QuestionAmount: String, CaseIterable {
@@ -160,6 +163,63 @@ struct QuizConfigView: View {
                         .frame(maxWidth: .infinity, minHeight: 54)
                         .foregroundStyle(.white)
                         .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        onStart(amount.baseCount, difficulty, .blockInfinite)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "infinity").font(.title3)
+                            Text("Infinite Block").font(.title3.bold())
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .foregroundStyle(.white)
+                        .background(
+                            LinearGradient(
+                                colors: [Color("Lightgreen")],
+                                startPoint: .leading, endPoint: .trailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 16)
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        onStart(amount.baseCount, difficulty, .boss)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "flame.fill").font(.title3)
+                            Text("Boss Battle").font(.title3.bold())
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .foregroundStyle(.white)
+                        .background(
+                            LinearGradient(
+                                colors: [Color("Red")],
+                                startPoint: .leading, endPoint: .trailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 16)
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        onStart(amount.baseCount, difficulty, .blitz)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "bolt.fill").font(.title3)
+                            Text("Speed Blitz").font(.title3.bold())
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .foregroundStyle(.white)
+                        .background(
+                            LinearGradient(
+                                colors: [Color("Yellow")],
+                                startPoint: .leading, endPoint: .trailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 16)
+                        )
                     }
                     .buttonStyle(.plain)
                 }

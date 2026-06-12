@@ -99,6 +99,28 @@ struct SuggestedPlanResult {
     var items: [SuggestedPlanItemResult]
 }
 
+// MARK: - Boss Battle generables
+
+@Generable
+struct BossIntroResult {
+    @Guide(description: "A villain-style boss name (1-3 words) themed around the topic. Examples: 'Mitosis', 'The Photosynthesizer', 'Lord Quadratic'. Title Case, no quotes.")
+    var name: String
+    @Guide(description: "One sentence of in-character flavour text where the boss introduces itself to the student. Playful, slightly menacing, never mean. Max 20 words.")
+    var intro: String
+}
+
+@Generable
+struct BossReactionResult {
+    @Guide(description: "One short in-character line from the boss (max 18 words). If the student was correct, react with surprised acknowledgement (e.g., 'Lucky shot…'). If wrong, give a playful taunt that gently teaches by hinting at the right idea. Never mean-spirited.")
+    var line: String
+}
+
+@Generable
+struct BossOutcomeResult {
+    @Guide(description: "One short message to the student about the outcome (max 25 words). For victory: celebrate and summarize what they mastered. For defeat: encourage them to try again with a hint about what to focus on.")
+    var message: String
+}
+
 @Observable
 final class FoundationModelService {
 
@@ -570,5 +592,84 @@ final class FoundationModelService {
             )
         }
         return SuggestedStudyPlan(items: items)
+    }
+
+    // MARK: - Boss Battle flavour generation
+
+    /// Generate a themed boss name + intro line for the given topic.
+    func generateBossIntro(topic: String) async throws -> (name: String, intro: String) {
+        let prompt = """
+        Create a quirky educational "boss" character themed around the topic: "\(topic)".
+
+        Output:
+        - A villain-style boss name (1-3 words, Title Case)
+        - One sentence (max 20 words) where the boss introduces itself to the student. \
+        Playful and slightly menacing — never mean. Stay in character.
+        """
+        let response = try await makeContentSession().respond(
+            to: prompt,
+            generating: BossIntroResult.self,
+            options: creativeOptions
+        )
+        let name = response.content.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let intro = response.content.intro.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (name, intro)
+    }
+
+    /// Generate a one-liner reaction from the boss after the student answers.
+    func generateBossReaction(
+        bossName: String,
+        topic: String,
+        question: String,
+        correctAnswer: String,
+        wasCorrect: Bool
+    ) async throws -> String {
+        let mode = wasCorrect ?
+            "The student answered correctly. React with playful, slightly defeated acknowledgement." :
+            "The student answered incorrectly. Give a friendly taunt that subtly hints at the right idea. Never mean."
+        let prompt = """
+        You are speaking as the boss "\(bossName)" in an educational battle about "\(topic)".
+
+        \(mode)
+
+        Output ONE short line in character (max 18 words). Do not break character.
+
+        Question: \(question)
+        Correct answer: \(correctAnswer)
+        """
+        let response = try await makeContentSession().respond(
+            to: prompt,
+            generating: BossReactionResult.self,
+            options: creativeOptions
+        )
+        return response.content.line.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Generate a victory or defeat closing message.
+    func generateBossOutcome(
+        bossName: String,
+        topic: String,
+        victory: Bool
+    ) async throws -> String {
+        let prompt: String
+        if victory {
+            prompt = """
+            The student has defeated the boss "\(bossName)" in a battle about "\(topic)". \
+            Write one short message (max 25 words) celebrating the win and naming what they mastered. \
+            Encouraging, not over-the-top.
+            """
+        } else {
+            prompt = """
+            The student was defeated by the boss "\(bossName)" in a battle about "\(topic)". \
+            Write one short message (max 25 words) that encourages them to try again and hints at \
+            what to focus on. Kind, never mocking.
+            """
+        }
+        let response = try await makeContentSession().respond(
+            to: prompt,
+            generating: BossOutcomeResult.self,
+            options: creativeOptions
+        )
+        return response.content.message.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

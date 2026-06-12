@@ -9,6 +9,9 @@ struct StudySessionView: View {
         case loading
         case quizzing([Question])
         case blockQuizzing([MCQuestion])
+        case blockInfinite
+        case boss
+        case blitz
         case complete(correct: Int, total: Int, skipped: [Question])
     }
 
@@ -53,6 +56,36 @@ struct StudySessionView: View {
                         ) { results in
                             let correct = results.filter { $0 }.count
                             let total = results.count
+                            saveSession(correct: correct, total: total)
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                                state = .complete(correct: correct, total: total, skipped: [])
+                            }
+                        }
+                    case .blockInfinite:
+                        BlockInfiniteView(
+                            scope: scope,
+                            difficulty: chosenDifficulty
+                        ) { correct, total in
+                            saveSession(correct: correct, total: total)
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                                state = .complete(correct: correct, total: total, skipped: [])
+                            }
+                        }
+                    case .boss:
+                        BossBattleView(
+                            scope: scope,
+                            difficulty: chosenDifficulty
+                        ) { correct, total in
+                            saveSession(correct: correct, total: total)
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                                state = .complete(correct: correct, total: total, skipped: [])
+                            }
+                        }
+                    case .blitz:
+                        BlitzView(
+                            scope: scope,
+                            difficulty: chosenDifficulty
+                        ) { correct, total in
                             saveSession(correct: correct, total: total)
                             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                                 state = .complete(correct: correct, total: total, skipped: [])
@@ -188,6 +221,15 @@ struct StudySessionView: View {
                 } else {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { state = .blockQuizzing(questions) }
                 }
+            case .blockInfinite:
+                // Infinite mode handles its own question fetching internally.
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { state = .blockInfinite }
+            case .boss:
+                // Boss battle generates its own boss intro and per-round questions.
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { state = .boss }
+            case .blitz:
+                // Blitz pre-fetches its question batch in the view itself.
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { state = .blitz }
             }
         }
     }
