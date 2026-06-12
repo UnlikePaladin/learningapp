@@ -181,34 +181,85 @@ struct BlitzView: View {
     }
 
     private func questionCard(_ q: MCQuestion) -> some View {
-        VStack(spacing: 12) {
-            Text(q.prompt)
-                .font(.title3.bold())
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
+        VStack(spacing: 0) {
+            // Accent bar
+            Rectangle()
+                .fill(LinearGradient(
+                    colors: [Color("Yellow"), Color("Orange")],
+                    startPoint: .leading, endPoint: .trailing
+                ))
+                .frame(height: 5)
 
-            VStack(spacing: 8) {
-                ForEach(Array(q.options.enumerated()), id: \.offset) { idx, opt in
-                    Button { handleAnswer(idx) } label: {
-                        Text(opt)
-                            .font(.subheadline.bold())
-                            .frame(maxWidth: .infinity, minHeight: 50)
-                            .foregroundStyle(.primary)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color("Darkgreen").opacity(0.2), lineWidth: 1)
-                            )
+            VStack(alignment: .leading, spacing: 16) {
+                // Header row
+                HStack(spacing: 8) {
+                    Text("BLITZ")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Color("Orange").opacity(0.15), in: Capsule())
+                        .foregroundStyle(Color("Orange"))
+                    Text("Q\(totalAnswered + 1)")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if combo >= 3 {
+                        HStack(spacing: 3) {
+                            Image(systemName: "flame.fill")
+                                .font(.caption2)
+                                .foregroundStyle(combo >= 10 ? Color("Red") : (combo >= 5 ? Color("Orange") : Color("Yellow")))
+                            Text("\(combo)").font(.caption.bold())
+                        }
                     }
-                    .buttonStyle(.plain)
+                }
+
+                // Prompt
+                Text(q.prompt)
+                    .font(.title3.bold())
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Options
+                VStack(spacing: 10) {
+                    ForEach(Array(q.options.enumerated()), id: \.offset) { idx, opt in
+                        optionButton(index: idx, text: opt)
+                    }
                 }
             }
-            .padding(.horizontal)
+            .padding(20)
         }
-        .padding(.vertical, 14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-        .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .shadow(color: .black.opacity(0.09), radius: 12, y: 5)
+    }
+
+    private func optionButton(index: Int, text: String) -> some View {
+        let letters = ["A", "B", "C", "D"]
+        return Button {
+            handleAnswer(index)
+        } label: {
+            HStack(spacing: 12) {
+                Text(letters[min(index, 3)])
+                    .font(.subheadline.bold())
+                    .frame(width: 28, height: 28)
+                    .background(Color("Orange").opacity(0.15), in: Circle())
+                    .foregroundStyle(Color("Orange"))
+
+                Text(text)
+                    .font(.subheadline)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(.primary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(Color("Orange").opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color("Orange").opacity(0.25), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Combo flair

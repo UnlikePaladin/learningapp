@@ -17,12 +17,12 @@ struct LoginView: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Bienvenido")
+                        Text("Welcome")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(Color("Darkgreen").opacity(0.7))
                             .textCase(.uppercase)
                             .tracking(0.8)
-                        Text("Inicia sesión")
+                        Text("Sign in")
                             .font(.largeTitle.bold())
                             .foregroundStyle(Color("Darkgreen"))
                     }
@@ -40,8 +40,8 @@ struct LoginView: View {
 
                     VStack(alignment: .leading, spacing: 20) {
                         VStack(spacing: 12) {
-                            AuthField(placeholder: "Correo electrónico", text: $email, isEmail: true)
-                            AuthField(placeholder: "Contraseña", text: $password, isSecure: true)
+                            AuthField(placeholder: "Email address", text: $email, isEmail: true)
+                            AuthField(placeholder: "Password", text: $password, isSecure: true)
                         }
 
                         if let err = auth.errorMessage {
@@ -55,21 +55,21 @@ struct LoginView: View {
                         Button {
                             showReset = true
                         } label: {
-                            Text("¿Olvidaste tu contraseña?")
+                            Text("Forgot your password?")
                                 .font(.caption)
                                 .foregroundStyle(cream.opacity(0.8))
                         }
                         .frame(maxWidth: .infinity, alignment: .trailing)
 
-                        AuthPrimaryButton(label: "Iniciar sesión", isLoading: auth.isLoading) {
+                        AuthPrimaryButton(label: "Sign in", isLoading: auth.isLoading) {
                             Task { await auth.signIn(email: email, password: password) }
                         }
                         .disabled(email.isEmpty || password.isEmpty)
 
                         HStack(spacing: 4) {
-                            Text("¿No tienes cuenta?")
+                            Text("Don't have an account?")
                                 .foregroundStyle(cream.opacity(0.75))
-                            Button("Regístrate") { showSignUp = true }
+                            Button("Sign up") { showSignUp = true }
                                 .foregroundStyle(cream)
                                 .fontWeight(.semibold)
                         }
@@ -99,12 +99,12 @@ struct LoginView: View {
             .navigationDestination(isPresented: $showSignUp) {
                 SignUpView()
             }
-            .alert("Restablecer contraseña", isPresented: $showReset) {
-                TextField("Correo electrónico", text: $email)
-                Button("Enviar") { Task { await auth.resetPassword(email: email) } }
-                Button("Cancelar", role: .cancel) {}
+            .alert("Reset password", isPresented: $showReset) {
+                TextField("Email address", text: $email)
+                Button("Send") { Task { await auth.resetPassword(email: email) } }
+                Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Ingresa tu correo y te enviaremos un enlace.")
+                Text("Enter your email and we'll send you a link.")
             }
             .navigationBarHidden(true)
         }
@@ -138,12 +138,12 @@ struct SignUpView: View {
                 .padding(.top, 16)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Crea tu cuenta")
+                    Text("Create your account")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Color("Darkgreen").opacity(0.7))
                         .textCase(.uppercase)
                         .tracking(0.8)
-                    Text("Regístrate")
+                    Text("Sign up")
                         .font(.largeTitle.bold())
                         .foregroundStyle(Color("Darkgreen"))
                 }
@@ -161,13 +161,13 @@ struct SignUpView: View {
 
                 VStack(alignment: .leading, spacing: 14) {
                     VStack(spacing: 12) {
-                        AuthField(placeholder: "Correo electrónico", text: $email, isEmail: true)
-                        AuthField(placeholder: "Contraseña", text: $password, isSecure: true)
-                        AuthField(placeholder: "Confirmar contraseña", text: $confirmPassword, isSecure: true)
+                        AuthField(placeholder: "Email address", text: $email, isEmail: true)
+                        AuthField(placeholder: "Password", text: $password, isSecure: true)
+                        AuthField(placeholder: "Confirm password", text: $confirmPassword, isSecure: true)
                     }
 
                     if passwordMismatch {
-                        Text("Las contraseñas no coinciden.")
+                        Text("Passwords don't match.")
                             .font(.caption)
                             .foregroundStyle(.red.opacity(0.9))
                             .frame(maxWidth: .infinity, alignment: .center)
@@ -181,7 +181,7 @@ struct SignUpView: View {
                             .frame(maxWidth: .infinity)
                     }
 
-                    AuthPrimaryButton(label: "Crear cuenta", isLoading: auth.isLoading) {
+                    AuthPrimaryButton(label: "Create account", isLoading: auth.isLoading) {
                         guard password == confirmPassword else { passwordMismatch = true; return }
                         passwordMismatch = false
                         Task { await auth.signUp(email: email, password: password) }
@@ -189,9 +189,9 @@ struct SignUpView: View {
                     .disabled(email.isEmpty || password.isEmpty || confirmPassword.isEmpty)
 
                     HStack(spacing: 4) {
-                        Text("¿Ya tienes cuenta?")
+                        Text("Already have an account?")
                             .foregroundStyle(cream.opacity(0.75))
-                        Button("Inicia sesión") { dismiss() }
+                        Button("Sign in") { dismiss() }
                             .foregroundStyle(cream)
                             .fontWeight(.semibold)
                     }

@@ -244,40 +244,84 @@ struct BossBattleView: View {
     // MARK: - Question card
 
     private var questionCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(roundLabel).font(.caption.bold()).foregroundStyle(Color("Orange"))
-                Spacer()
-            }
-            if isLoadingNext || currentQuestion == nil {
-                HStack {
-                    ProgressView()
-                    Text("Preparing the next attack…").font(.subheadline).foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 80)
-            } else if let q = currentQuestion {
-                Text(q.prompt)
-                    .font(.title3.bold())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                TextField("Type your answer", text: $userAnswer, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(1...3)
-                Button { Task { await submitAnswer(q) } } label: {
-                    HStack {
-                        if isEvaluating { ProgressView().scaleEffect(0.7) }
-                        Text(isEvaluating ? "Evaluating…" : "Strike!")
-                            .font(.headline.bold())
+        VStack(spacing: 0) {
+            // Accent bar
+            Rectangle()
+                .fill(LinearGradient(
+                    colors: [Color("Red"), Color("Orange")],
+                    startPoint: .leading, endPoint: .trailing
+                ))
+                .frame(height: 5)
+
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 8) {
+                    Text(roundLabel)
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Color("Orange").opacity(0.15), in: Capsule())
+                        .foregroundStyle(Color("Orange"))
+                    Spacer()
+                    if let e = encounter {
+                        Text("Round \(e.currentRound)")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 46)
-                    .foregroundStyle(.white)
-                    .background(Color("Red"), in: RoundedRectangle(cornerRadius: 12))
                 }
-                .buttonStyle(.plain)
-                .disabled(userAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isEvaluating)
+
+                if isLoadingNext || currentQuestion == nil {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Preparing the next attack…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 100)
+                } else if let q = currentQuestion {
+                    Text(q.prompt)
+                        .font(.title3.bold())
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    TextField("Type your answer", text: $userAnswer, axis: .vertical)
+                        .font(.body)
+                        .padding(12)
+                        .background(.background, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color("Red").opacity(0.25), lineWidth: 1)
+                        )
+                        .lineLimit(2...5)
+
+                    Button { Task { await submitAnswer(q) } } label: {
+                        HStack(spacing: 8) {
+                            if isEvaluating {
+                                ProgressView().tint(.white).scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "flame.fill")
+                            }
+                            Text(isEvaluating ? "Evaluating…" : "Strike!")
+                                .font(.headline.bold())
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .foregroundStyle(.white)
+                        .background(
+                            LinearGradient(
+                                colors: [Color("Red"), Color("Orange")],
+                                startPoint: .leading, endPoint: .trailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 12)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(userAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isEvaluating)
+                }
             }
+            .padding(20)
         }
-        .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .shadow(color: .black.opacity(0.09), radius: 12, y: 5)
     }
 
     private var roundLabel: String {

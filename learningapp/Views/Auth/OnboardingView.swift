@@ -115,7 +115,7 @@ struct OnboardingView: View {
             }
 
             OnboardingPrimaryButton(
-                label: step < totalSteps - 1 ? "Siguiente" : "¡Empezar a aprender!",
+                label: step < totalSteps - 1 ? "Next" : "Start Learning!",
                 isLoading: isSaving,
                 disabled: !canAdvance
             ) {
@@ -144,17 +144,17 @@ struct OnboardingView: View {
 
     private var stepTitle: String {
         switch step {
-        case 0: "Elige tu avatar"
-        case 1: "¿Cómo te llamamos?"
-        default: "¿Qué te interesa?"
+        case 0: "Pick your avatar"
+        case 1: "What should we call you?"
+        default: "What are you into?"
         }
     }
 
     private var stepSubtitle: String {
         switch step {
-        case 0: "Tu personaje"
-        case 1: "Tu nombre"
-        default: "Tus temas"
+        case 0: "Your character"
+        case 1: "Your name"
+        default: "Your topics"
         }
     }
 
@@ -210,7 +210,7 @@ struct OnboardingView: View {
                 }
             }
 
-            Text("Color de fondo")
+            Text("Background color")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.7))
                 .textCase(.uppercase)
@@ -243,7 +243,7 @@ struct OnboardingView: View {
 
     private var nicknameStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField("Tu nombre aquí", text: $nickname)
+            TextField("Your name here", text: $nickname)
                 .padding(.horizontal, 18)
                 .padding(.vertical, 14)
                 .background(cream, in: RoundedRectangle(cornerRadius: 14))
@@ -253,7 +253,7 @@ struct OnboardingView: View {
                 .autocapitalization(.words)
                 #endif
 
-            Text("Este nombre aparecerá en tu perfil y en tus logros.")
+            Text("This name will appear on your profile and your achievements.")
                 .font(.footnote)
                 .foregroundStyle(.white.opacity(0.65))
         }
@@ -277,14 +277,14 @@ struct OnboardingView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Personalizado")
+                    Text("Custom")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.7))
                         .textCase(.uppercase)
                         .tracking(0.5)
 
                     HStack(spacing: 8) {
-                        TextField("Agregar tema…", text: $customTag)
+                        TextField("Add a topic…", text: $customTag)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
                             .background(cream.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
@@ -361,7 +361,7 @@ struct OnboardingView: View {
 
             auth.completeOnboarding()
         } catch {
-            saveError = "No se pudo guardar tu perfil. Intenta de nuevo."
+            saveError = "Couldn't save your profile. Try again."
         }
 
         isSaving = false
