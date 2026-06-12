@@ -6,10 +6,14 @@ import SwiftData
 final class UserProfile {
     @Attribute(.unique) var id: UUID
     var nickname: String
-    /// Asset name of the chosen giraffe avatar (e.g., "happy_giraffe").
+    /// Asset name of the chosen giraffe avatar (e.g., "happy_giraffe"). Used as the source
+    /// for the crop editor and as the rendered avatar when no custom image has been saved.
     var avatarID: String
     /// Identifier for the background color behind the avatar (e.g., "white", "mint").
     var avatarBackground: String
+    /// PNG bytes of a user-cropped avatar image. When non-nil, this is preferred over the
+    /// raw giraffe asset for display. Cleared when the user picks a different giraffe.
+    var customAvatarData: Data?
     /// Selected interest tags (e.g., "Math", "Algebra").
     var interests: [String]
     var dateCreated: Date
@@ -21,6 +25,7 @@ final class UserProfile {
         nickname: String = "",
         avatarID: String = "happy_giraffe",
         avatarBackground: String = "white",
+        customAvatarData: Data? = nil,
         interests: [String] = [],
         dateCreated: Date = Date(),
         avatarBlob: Data? = nil
@@ -29,6 +34,7 @@ final class UserProfile {
         self.nickname = nickname
         self.avatarID = avatarID
         self.avatarBackground = avatarBackground
+        self.customAvatarData = customAvatarData
         self.interests = interests
         self.dateCreated = dateCreated
         self.avatarBlob = avatarBlob
