@@ -326,7 +326,10 @@ struct OnboardingView: View {
     // MARK: - Finish
 
     private func finishOnboarding() async {
-        guard let uid = auth.currentUser?.uid else { return }
+        guard let uid = auth.currentUser?.uid else {
+            saveError = "Error: no hay sesión activa."
+            return
+        }
         isSaving = true
         saveError = nil
 
@@ -335,7 +338,6 @@ struct OnboardingView: View {
         let trimmedNickname = nickname.trimmingCharacters(in: .whitespaces)
 
         do {
-            // Save to Firestore
             try await firestoreService.createProfile(
                 uid: uid,
                 nickname: trimmedNickname,
@@ -345,7 +347,6 @@ struct OnboardingView: View {
                 interests: interestList
             )
 
-            // Save to SwiftData
             let profile = UserProfile(
                 nickname: trimmedNickname,
                 avatarID: selectedAvatar.rawValue,
@@ -356,12 +357,12 @@ struct OnboardingView: View {
             context.insert(profile)
             try context.save()
 
-            // Sync existing local data
             try await firestoreService.syncLocalData(uid: uid, context: context)
 
             auth.completeOnboarding()
         } catch {
-            saveError = "No se pudo guardar tu perfil. Intenta de nuevo."
+            print("❌ Onboarding save error: \(error)")
+            saveError = error.localizedDescription
         }
 
         isSaving = false
