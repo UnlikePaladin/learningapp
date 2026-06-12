@@ -66,17 +66,13 @@ final class StudyCoordinator {
         let rawChunks = chunkLocally(source.rawText)
         guard !rawChunks.isEmpty else { return }
 
-        // 2. AI filter for relevance
+        // 2. Fast local heuristic filter — no AI call per chunk (was ~1-2s each, prohibitive for big PDFs).
         ingestionStatus = "Filtering relevant content..."
-        var relevantChunks: [String] = []
-        for (i, chunk) in rawChunks.enumerated() {
-            ingestionProgress = Double(i) / Double(rawChunks.count) * 0.5
-            if chunk.count < 30 { continue }
-            if await modelService.isLessonContent(chunk) {
-                relevantChunks.append(chunk)
-            }
-        }
-        if relevantChunks.isEmpty { relevantChunks = rawChunks }
+        ingestionProgress = 0.4
+        let relevantChunks: [String] = {
+            let filtered = rawChunks.filter { LocalContentFilter.isLikelyContent($0) }
+            return filtered.isEmpty ? rawChunks : filtered
+        }()
 
         // 3. Embed each new chunk
         ingestionStatus = "Embedding chunks..."

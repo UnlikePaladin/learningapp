@@ -88,11 +88,45 @@ struct SuggestedPlanResult {
 @Observable
 final class FoundationModelService {
 
+    // MARK: - Availability
+
+    /// Returns true when the on-device model is downloaded and Apple Intelligence is enabled.
+    /// Call this before any AI feature so we can show a graceful unavailable state.
+    static var isAvailable: Bool {
+        if case .available = SystemLanguageModel.default.availability { return true }
+        return false
+    }
+
+    static var unavailabilityReason: String? {
+        if case .unavailable(let reason) = SystemLanguageModel.default.availability {
+            switch reason {
+            case .deviceNotEligible:
+                return "This device doesn't support Apple Intelligence."
+            case .appleIntelligenceNotEnabled:
+                return "Apple Intelligence is turned off. Enable it in Settings."
+            case .modelNotReady:
+                return "The language model is still downloading. Try again shortly."
+            @unknown default:
+                return "Apple Intelligence is unavailable on this device."
+            }
+        }
+        return nil
+    }
+
+    // MARK: - Generation options for different tasks
+
+    /// Deterministic, low-temperature options for classification/title tasks where we want
+    /// stable, predictable output. `greedy` sampling avoids any randomness.
+    private let deterministicOptions = GenerationOptions(sampling: .greedy, temperature: 0.0)
+
+    /// Slightly creative options for content like card explanations and question writing,
+    /// where some variety helps quality.
+    private let creativeOptions = GenerationOptions(temperature: 0.5)
+
     // MARK: - Session builders with task-specific Instructions
 
     /// Session for content generation: titles, summaries, cards, explanations.
-    /// No tools — these are pure text-shaping tasks. Persistent instructions establish the
-    /// tutor persona and grounding rule once, so the role doesn't take up tokens in every prompt.
+    /// No tools — these are pure text-shaping tasks.
     private func makeContentSession() -> LanguageModelSession {
         LanguageModelSession {
             "You are a clear, patient educational tutor for learners with ADHD."
@@ -101,20 +135,18 @@ final class FoundationModelService {
         }
     }
 
-    /// Session for content classification (relevant vs boilerplate).
-    /// Keeps instructions focused on classification so the model doesn't slip into generative mode.
+    /// Session for content classification — uses the specialized .contentTagging model
+    /// which Apple has tuned for topic detection, entity extraction, and tag-style outputs.
+    /// Better fit than the general model for binary lesson-content vs boilerplate decisions
+    /// and for concept extraction (which is essentially tagging).
     private func makeClassifierSession() -> LanguageModelSession {
-        LanguageModelSession {
-            "You are a content classifier. Read input and return only the requested boolean field."
-            "Be conservative: when in doubt, treat the input as content (true)."
+        LanguageModelSession(model: SystemLanguageModel(useCase: .contentTagging)) {
+            "Classify or tag the input. Return only the requested fields."
+            "Be conservative: when uncertain, treat input as content (true)."
         }
     }
 
-    /// Session for quiz generation and answer evaluation. NO tools attached — the RAG context
-    /// contains everything the model needs, and attaching tools (especially fact-lookup tools)
-    /// causes the model to spin in tool-call loops trying to look up things that aren't in our
-    /// reference table. If a quiz topic genuinely needs math, the model can do basic arithmetic
-    /// inline; for anything more, we'd need a different strategy.
+    /// Session for quiz generation and answer evaluation. NO tools attached.
     private func makeQuizSession() -> LanguageModelSession {
         LanguageModelSession {
             "You are a precise educational tutor for an ADHD-focused study app."
@@ -136,7 +168,11 @@ final class FoundationModelService {
         \(text)
         """
         do {
-            let response = try await makeClassifierSession().respond(to: prompt, generating: ContentRelevance.self)
+            let response = try await makeClassifierSession().respond(
+                to: prompt,
+                generating: ContentRelevance.self,
+                options: deterministicOptions
+            )
             return response.content.isLessonContent
         } catch {
             return true // fail open
@@ -156,7 +192,11 @@ final class FoundationModelService {
         \(termsLine)Most representative content:
         \(representativeContent)
         """
-        let response = try await makeContentSession().respond(to: prompt, generating: TitleResult.self)
+        let response = try await makeContentSession().respond(
+            to: prompt,
+            generating: TitleResult.self,
+            options: deterministicOptions
+        )
         return sanitizeTitle(response.content.title)
     }
 
@@ -178,7 +218,11 @@ final class FoundationModelService {
         \(termsLine)Content:
         \(content)
         """
-        let response = try await makeContentSession().respond(to: prompt, generating: ModuleTitleResult.self)
+        let response = try await makeContentSession().respond(
+            to: prompt,
+            generating: ModuleTitleResult.self,
+            options: deterministicOptions
+        )
         return (sanitizeTitle(response.content.title), response.content.summary.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
@@ -197,7 +241,11 @@ final class FoundationModelService {
         \(termsLine)Content:
         \(content)
         """
-        let response = try await makeContentSession().respond(to: prompt, generating: SummaryOnlyResult.self)
+        let response = try await makeContentSession().respond(
+            to: prompt,
+            generating: SummaryOnlyResult.self,
+            options: deterministicOptions
+        )
         return response.content.summary.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -215,7 +263,11 @@ final class FoundationModelService {
         Content:
         \(trimmed)
         """
-        let response = try await makeContentSession().respond(to: prompt, generating: StudyCardsResult.self)
+        let response = try await makeContentSession().respond(
+            to: prompt,
+            generating: StudyCardsResult.self,
+            options: creativeOptions
+        )
         return response.content.cards.map { card in
             (
                 title: card.title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -325,7 +377,8 @@ final class FoundationModelService {
     }
 
     /// Step 1 of the pipeline: ask the model what concepts can be quizzed from this content.
-    /// Output is just a list of strings — small schema, fast generation.
+    /// Uses the .contentTagging specialized model since this is essentially a tagging task —
+    /// extract topic labels from the source. Output is just a list of strings.
     private func generateQuestionConcepts(context: String, maxCount: Int) async throws -> [String] {
         let prompt = """
         Identify \(maxCount) distinct concepts from the study material below — one per item. \
@@ -336,7 +389,11 @@ final class FoundationModelService {
         Study material:
         \(context)
         """
-        let response = try await makeContentSession().respond(to: prompt, generating: ConceptListResult.self)
+        let response = try await makeClassifierSession().respond(
+            to: prompt,
+            generating: ConceptListResult.self,
+            options: deterministicOptions
+        )
         return response.content.concepts
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -376,7 +433,11 @@ final class FoundationModelService {
         Study material:
         \(context)
         """
-        let response = try await makeQuizSession().respond(to: prompt, generating: GeneratedQuestion.self)
+        let response = try await makeQuizSession().respond(
+            to: prompt,
+            generating: GeneratedQuestion.self,
+            options: creativeOptions
+        )
         return response.content
     }
 
@@ -415,7 +476,12 @@ final class FoundationModelService {
         Student's answer: \(userAnswer)
         """
         // No tools — the question, expected answer, and student answer are all in the prompt.
-        let response = try await makeQuizSession().respond(to: prompt, generating: FeedbackResult.self)
+        // Deterministic so grading is consistent for the same answer.
+        let response = try await makeQuizSession().respond(
+            to: prompt,
+            generating: FeedbackResult.self,
+            options: deterministicOptions
+        )
         let r = response.content
         return Feedback(isCorrect: r.isCorrect, explanation: r.explanation, encouragement: r.encouragement)
     }
@@ -436,7 +502,11 @@ final class FoundationModelService {
         Lessons:
         \(summaries)
         """
-        let response = try await makeContentSession().respond(to: prompt, generating: SuggestedPlanResult.self)
+        let response = try await makeContentSession().respond(
+            to: prompt,
+            generating: SuggestedPlanResult.self,
+            options: deterministicOptions
+        )
         let items = response.content.items.compactMap { item -> SuggestedPlanItem? in
             guard item.lessonIndex >= 0, item.lessonIndex < lessons.count else { return nil }
             let l = lessons[item.lessonIndex]
