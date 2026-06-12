@@ -8,6 +8,7 @@ struct StudySessionView: View {
         case config
         case loading
         case quizzing([Question])
+        case blockQuizzing([MCQuestion])
         case complete(correct: Int, total: Int, skipped: [Question])
     }
 
@@ -27,8 +28,8 @@ struct StudySessionView: View {
                 Group {
                     switch state {
                     case .config:
-                        QuizConfigView(title: scope.title) { count, difficulty in
-                            startQuiz(count: count, difficulty: difficulty)
+                        QuizConfigView(title: scope.title) { count, difficulty, mode in
+                            startQuiz(count: count, difficulty: difficulty, mode: mode)
                         }
                     case .loading:
                         loadingView
@@ -43,6 +44,18 @@ struct StudySessionView: View {
                             saveSession(correct: correct, total: total)
                             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                                 state = .complete(correct: correct, total: total, skipped: skipped)
+                            }
+                        }
+                    case .blockQuizzing(let questions):
+                        BlockQuizView(
+                            questions: questions,
+                            difficulty: chosenDifficulty
+                        ) { results in
+                            let correct = results.filter { $0 }.count
+                            let total = results.count
+                            saveSession(correct: correct, total: total)
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                                state = .complete(correct: correct, total: total, skipped: [])
                             }
                         }
                     case .complete(let correct, let total, let skipped):
@@ -126,7 +139,7 @@ struct StudySessionView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func startQuiz(count: Int, difficulty: DifficultyLevel) {
+    private func startQuiz(count: Int, difficulty: DifficultyLevel, mode: QuizMode = .classic) {
         chosenDifficulty = difficulty
         sessionStart = Date()
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { state = .loading }
@@ -146,18 +159,35 @@ struct StudySessionView: View {
                 topicHint = plan.name
             }
 
-            let questions = await coordinator.generateQuestions(
-                for: ragScope,
-                topicHint: topicHint,
-                count: count,
-                difficulty: difficulty,
-                context: modelContext
-            )
-            if questions.isEmpty {
-                errorMessage = "Could not generate questions. Try adding more material."
-                withAnimation { state = .config }
-            } else {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { state = .quizzing(questions) }
+            switch mode {
+            case .classic:
+                let questions = await coordinator.generateQuestions(
+                    for: ragScope,
+                    topicHint: topicHint,
+                    count: count,
+                    difficulty: difficulty,
+                    context: modelContext
+                )
+                if questions.isEmpty {
+                    errorMessage = "Could not generate questions. Try adding more material."
+                    withAnimation { state = .config }
+                } else {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { state = .quizzing(questions) }
+                }
+            case .block:
+                let questions = await coordinator.generateMCQuestions(
+                    for: ragScope,
+                    topicHint: topicHint,
+                    count: count,
+                    difficulty: difficulty,
+                    context: modelContext
+                )
+                if questions.isEmpty {
+                    errorMessage = "Could not generate questions. Try adding more material."
+                    withAnimation { state = .config }
+                } else {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { state = .blockQuizzing(questions) }
+                }
             }
         }
     }

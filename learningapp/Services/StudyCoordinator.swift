@@ -241,6 +241,27 @@ final class StudyCoordinator {
         }
     }
 
+    func generateMCQuestions(
+        for scope: RAGService.Scope,
+        topicHint: String,
+        count: Int,
+        difficulty: DifficultyLevel,
+        context: ModelContext
+    ) async -> [MCQuestion] {
+        let topK = max(3, min(10, (count + 2) / 3))
+        let maxChars = max(1500, min(4000, count * 200))
+        let chunks = ragService.retrieveRelevantChunks(
+            query: topicHint,
+            scope: scope,
+            from: context,
+            topK: topK,
+            maxChars: maxChars
+        )
+        let ragContext = ragService.buildContext(from: chunks)
+        guard !ragContext.isEmpty else { return [] }
+        return (try? await modelService.generateMCQuestions(context: ragContext, count: count, difficulty: difficulty)) ?? []
+    }
+
     func evaluate(question: Question, answer: String, difficulty: DifficultyLevel) async -> Feedback {
         do {
             return try await modelService.evaluateAnswer(question: question, userAnswer: answer, difficulty: difficulty)

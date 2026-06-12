@@ -68,6 +68,20 @@ struct FeedbackResult {
 }
 
 @Generable
+struct GeneratedMCQuestion {
+    @Guide(description: "A clear question testing understanding of one concept from the material.")
+    var prompt: String
+    @Guide(description: "The correct answer to the question — grounded in the material.")
+    var correctAnswer: String
+    @Guide(description: "First plausible but wrong distractor. Must sound believable, must not be correct.")
+    var wrongAnswer1: String
+    @Guide(description: "Second plausible but wrong distractor.")
+    var wrongAnswer2: String
+    @Guide(description: "Third plausible but wrong distractor.")
+    var wrongAnswer3: String
+}
+
+@Generable
 struct SuggestedPlanItemResult {
     @Guide(description: "0-based index of the lesson in the input list.")
     var lessonIndex: Int
@@ -438,6 +452,43 @@ final class FoundationModelService {
             generating: GeneratedQuestion.self,
             options: creativeOptions
         )
+        return response.content
+    }
+
+    // MARK: - Multiple Choice Question Generation
+
+    func generateMCQuestions(context: String, count: Int = 5, difficulty: DifficultyLevel = .medium) async throws -> [MCQuestion] {
+        let rawConcepts = (try? await generateQuestionConcepts(context: context, maxCount: count)) ?? []
+        var seen = Set<String>()
+        let concepts = rawConcepts.filter { c in
+            let key = c.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { return false }
+            return seen.insert(key).inserted
+        }
+        guard !concepts.isEmpty else { return [] }
+
+        var questions: [MCQuestion] = []
+        for concept in concepts.prefix(count) {
+            guard let q = try? await generateSingleMCQuestion(context: context, concept: concept, difficulty: difficulty) else { continue }
+            let shuffled = ([q.correctAnswer, q.wrongAnswer1, q.wrongAnswer2, q.wrongAnswer3]).shuffled()
+            let correctIdx = shuffled.firstIndex(of: q.correctAnswer) ?? 0
+            questions.append(MCQuestion(prompt: q.prompt, options: shuffled, correctIndex: correctIdx))
+        }
+        return questions
+    }
+
+    private func generateSingleMCQuestion(context: String, concept: String, difficulty: DifficultyLevel) async throws -> GeneratedMCQuestion {
+        let prompt = """
+        Generate ONE multiple-choice question about this concept: "\(concept)"
+
+        The question should test \(difficulty.systemPrompt). Use ONLY information from the material below.
+        The correct answer must be factually grounded in the material.
+        The three distractors must be plausible but clearly wrong upon reflection — not trick answers, not obviously absurd.
+
+        Study material:
+        \(context)
+        """
+        let response = try await makeQuizSession().respond(to: prompt, generating: GeneratedMCQuestion.self)
         return response.content
     }
 

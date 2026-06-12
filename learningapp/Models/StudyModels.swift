@@ -166,6 +166,13 @@ struct Feedback: Codable {
     var encouragement: String
 }
 
+struct MCQuestion: Identifiable, Codable {
+    var id: UUID = UUID()
+    var prompt: String
+    var options: [String]   // always 4 items
+    var correctIndex: Int   // 0-3
+}
+
 enum QuestionStyle: String, Codable, CaseIterable {
     case eli5, analogy, realWorld, whatIf
 }

@@ -1,5 +1,10 @@
 import SwiftUI
 
+enum QuizMode {
+    case classic
+    case block
+}
+
 enum QuestionAmount: String, CaseIterable {
     case few = "A Few"
     case bunch = "A Bunch"
@@ -62,7 +67,7 @@ enum DifficultyLevel: String, CaseIterable {
 
 struct QuizConfigView: View {
     let title: String
-    let onStart: (Int, DifficultyLevel) -> Void
+    let onStart: (Int, DifficultyLevel, QuizMode) -> Void
 
     @State private var amount: QuestionAmount = .few
     @State private var difficulty: DifficultyLevel = .medium
@@ -131,18 +136,33 @@ struct QuizConfigView: View {
 
                 Spacer()
 
-                Button {
-                    onStart(amount.baseCount, difficulty)
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "play.fill").font(.title3)
-                        Text("Start Quiz").font(.title3.bold())
+                VStack(spacing: 10) {
+                    Button {
+                        onStart(amount.baseCount, difficulty, .classic)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "play.fill").font(.title3)
+                            Text("Classic Quiz").font(.title3.bold())
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .foregroundStyle(.white)
+                        .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 16))
                     }
-                    .frame(maxWidth: .infinity, minHeight: 54)
-                    .foregroundStyle(.white)
-                    .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 16))
+                    .buttonStyle(.plain)
+
+                    Button {
+                        onStart(amount.baseCount, difficulty, .block)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "square.grid.2x2.fill").font(.title3)
+                            Text("Block Quiz").font(.title3.bold())
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .foregroundStyle(.white)
+                        .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             .padding(24)
         }
