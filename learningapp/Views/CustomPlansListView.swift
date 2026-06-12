@@ -8,26 +8,55 @@ struct CustomPlansListView: View {
 
     @State private var showingCreate = false
 
+    private let cardColors: [Color] = [
+        Color("Darkgreen"), Color("Orange"), Color("Lightgreen"), Color("Red")
+    ]
+
     var body: some View {
         NavigationStack {
             Group {
                 if plans.isEmpty {
-                    ContentUnavailableView(
-                        "No plans yet",
-                        systemImage: "list.clipboard",
-                        description: Text("Create a study plan to group lessons you want to study together.")
-                    )
+                    VStack(spacing: 24) {
+                        ContentUnavailableView(
+                            "No plans yet",
+                            systemImage: "list.clipboard",
+                            description: Text("Group lessons together and quiz across all of them.")
+                        )
+                        if !lessons.isEmpty {
+                            Button {
+                                showingCreate = true
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.title3)
+                                    Text("Create First Plan")
+                                        .font(.title3.bold())
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 52)
+                                .foregroundStyle(.white)
+                                .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 16))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal)
+                        }
+                    }
                 } else {
                     List {
-                        ForEach(plans) { plan in
+                        ForEach(Array(plans.enumerated()), id: \.element.id) { index, plan in
                             NavigationLink {
                                 PlanDetailView(plan: plan)
                             } label: {
-                                planRow(plan)
+                                planCard(plan, index: index)
                             }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                         }
                         .onDelete(perform: deletePlans)
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color("Darkgreen").opacity(0.05).ignoresSafeArea())
                 }
             }
             .navigationTitle("Plans")
@@ -45,15 +74,38 @@ struct CustomPlansListView: View {
         }
     }
 
-    private func planRow(_ plan: CustomStudyPlan) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(plan.name)
-                .font(.headline)
-            Text("\(plan.lessonIDs.count) lessons")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    private func planCard(_ plan: CustomStudyPlan, index: Int) -> some View {
+        let color = cardColors[index % cardColors.count]
+
+        return HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(plan.name)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+
+                HStack(spacing: 5) {
+                    Image(systemName: "book.fill")
+                        .font(.caption)
+                    Text(plan.lessonIDs.count == 1 ? "1 lesson" : "\(plan.lessonIDs.count) lessons")
+                        .font(.caption.bold())
+                }
+                .foregroundStyle(.white.opacity(0.85))
+            }
+
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(.white.opacity(0.18))
+                    .frame(width: 36, height: 36)
+                Image(systemName: "play.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+            }
         }
-        .padding(.vertical, 4)
+        .padding(16)
+        .background(color, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private func deletePlans(at offsets: IndexSet) {
