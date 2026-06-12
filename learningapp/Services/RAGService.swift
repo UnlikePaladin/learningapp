@@ -8,7 +8,6 @@ struct ScoredChunk {
 
 final class RAGService {
     private let embeddingService = EmbeddingService()
-    private let maxContextChars = 2500
 
     enum Scope {
         case lesson(UUID)
@@ -18,11 +17,14 @@ final class RAGService {
     }
 
     /// Retrieve top-K chunks most relevant to a query within the given scope.
+    /// `maxChars` controls how much context we'll include — important for quiz generation
+    /// where tool schemas already eat ~1000+ tokens of the budget.
     func retrieveRelevantChunks(
         query: String,
         scope: Scope,
         from context: ModelContext,
-        topK: Int = 4
+        topK: Int = 4,
+        maxChars: Int = 2500
     ) -> [StoredChunk] {
         guard let queryVector = embeddingService.embed(query) else { return [] }
 
@@ -49,7 +51,7 @@ final class RAGService {
         var result: [StoredChunk] = []
         var charCount = 0
         for item in scored.prefix(topK) {
-            if charCount + item.chunk.text.count > maxContextChars && !result.isEmpty { break }
+            if charCount + item.chunk.text.count > maxChars && !result.isEmpty { break }
             result.append(item.chunk)
             charCount += item.chunk.text.count
         }

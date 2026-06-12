@@ -3,103 +3,140 @@ import FoundationModels
 
 @Generable
 struct TitleResult {
-    @Guide(description: "A short, descriptive title for this study material (3-8 words)")
+    @Guide(description: "A short, descriptive title (3-8 words) in Title Case. No colons, no quotes, no trailing punctuation.")
     var title: String
 }
 
 @Generable
 struct ModuleTitleResult {
-    @Guide(description: "A short module title (2-5 words) describing the topic of this group of content")
+    @Guide(description: "A short title (2-5 words) in Title Case. No colons, no 'Key Points', no quotes.")
     var title: String
-    @Guide(description: "A one-sentence summary of the module")
+    @Guide(description: "One specific sentence describing what the student will learn. Start with a verb (Explains, Covers, Introduces, Describes). Do NOT restate the title or use the words 'module' or 'section'.")
+    var summary: String
+}
+
+@Generable
+struct SummaryOnlyResult {
+    @Guide(description: "One specific sentence describing what a student will learn. Start with a verb. Be specific about actual concepts.")
     var summary: String
 }
 
 @Generable
 struct StudyCardResult {
-    @Guide(description: "A short concept title (3-6 words) for this idea")
+    @Guide(description: "A short concept title (3-6 words).")
     var title: String
-    @Guide(description: "A clear, ADHD-friendly explanation of this single concept (2-3 short sentences). Use simple language. Do not just paraphrase — actually explain the concept.")
+    @Guide(description: "A clear, ADHD-friendly explanation of this single concept (2-3 short sentences). Simple language. Actually explain — don't paraphrase the source.")
     var explanation: String
 }
 
 @Generable
 struct StudyCardsResult {
-    @Guide(description: "Array of 3-7 study cards, each covering ONE distinct idea or concept from the content. Each card should stand alone as a single learnable unit.")
+    @Guide(description: "Array of 3-7 cards, each covering ONE distinct idea. Cards should not overlap.")
     var cards: [StudyCardResult]
 }
 
 @Generable
 struct ContentRelevance {
-    @Guide(description: "true if the text is meaningful educational lesson content (explanations, definitions, examples, concepts). false if it is boilerplate like branding, copyright notices, page headers/footers, image captions, navigation, table of contents, or legal disclaimers.")
+    @Guide(description: "true if the text is meaningful educational lesson content (explanations, definitions, examples). false if it is boilerplate (branding, copyright, headers, footers, image captions, navigation, contact info).")
     var isLessonContent: Bool
 }
 
 @Generable
+struct ConceptListResult {
+    @Guide(description: "Array of distinct concept titles from the content. Each title is 2-5 words. Aim for the count the user asks for unless the content genuinely has fewer distinct ideas.")
+    var concepts: [String]
+}
+
+@Generable
 struct GeneratedQuestion {
-    @Guide(description: "A clear, concise question testing understanding of one concept")
+    @Guide(description: "A clear, concise question testing understanding of one concept.")
     var prompt: String
-    @Guide(description: "The expected answer, brief and focused")
+    @Guide(description: "The expected answer, brief and focused.")
     var expectedAnswer: String
-    @Guide(description: "Difficulty from 1 (easy) to 5 (hard)")
+    @Guide(description: "Difficulty from 1 (easy) to 5 (hard).")
     var difficulty: Int
 }
 
 @Generable
-struct QuestionsResult {
-    @Guide(description: "Array of active recall questions, each testing one concept")
-    var questions: [GeneratedQuestion]
-}
-
-@Generable
 struct FeedbackResult {
-    @Guide(description: "Whether the answer demonstrates understanding")
+    @Guide(description: "Whether the answer demonstrates understanding.")
     var isCorrect: Bool
-    @Guide(description: "Brief explanation of what the complete answer should include")
+    @Guide(description: "Brief explanation of what a complete answer should include.")
     var explanation: String
-    @Guide(description: "Genuine encouragement that celebrates effort")
+    @Guide(description: "Genuine, brief encouragement that celebrates effort.")
     var encouragement: String
 }
 
 @Generable
 struct SuggestedPlanItemResult {
-    @Guide(description: "The index of the lesson in the input list (0-based)")
+    @Guide(description: "0-based index of the lesson in the input list.")
     var lessonIndex: Int
-    @Guide(description: "Priority from 1 (highest) to 5 (lowest)")
+    @Guide(description: "Priority from 1 (highest) to 5 (lowest).")
     var priority: Int
-    @Guide(description: "Brief reason why this lesson should be studied next")
+    @Guide(description: "Brief reason this lesson should be studied next.")
     var reason: String
-    @Guide(description: "Suggested study duration in minutes (5-25)")
+    @Guide(description: "Suggested study duration in minutes (5-25).")
     var suggestedDuration: Int
 }
 
 @Generable
 struct SuggestedPlanResult {
-    @Guide(description: "3-5 suggested plan items, ordered by priority")
+    @Guide(description: "3-5 plan items, ordered by priority.")
     var items: [SuggestedPlanItemResult]
 }
 
 @Observable
 final class FoundationModelService {
-    private let session = LanguageModelSession()
+
+    // MARK: - Session builders with task-specific Instructions
+
+    /// Session for content generation: titles, summaries, cards, explanations.
+    /// No tools — these are pure text-shaping tasks. Persistent instructions establish the
+    /// tutor persona and grounding rule once, so the role doesn't take up tokens in every prompt.
+    private func makeContentSession() -> LanguageModelSession {
+        LanguageModelSession {
+            "You are a clear, patient educational tutor for learners with ADHD."
+            "Always ground your output strictly in the material the user provides. Never invent facts that aren't in the source."
+            "Use simple language and short sentences. Output exactly what the requested schema asks for — no extra commentary, prefaces, or sign-offs."
+        }
+    }
+
+    /// Session for content classification (relevant vs boilerplate).
+    /// Keeps instructions focused on classification so the model doesn't slip into generative mode.
+    private func makeClassifierSession() -> LanguageModelSession {
+        LanguageModelSession {
+            "You are a content classifier. Read input and return only the requested boolean field."
+            "Be conservative: when in doubt, treat the input as content (true)."
+        }
+    }
+
+    /// Session for quiz generation and answer evaluation. NO tools attached — the RAG context
+    /// contains everything the model needs, and attaching tools (especially fact-lookup tools)
+    /// causes the model to spin in tool-call loops trying to look up things that aren't in our
+    /// reference table. If a quiz topic genuinely needs math, the model can do basic arithmetic
+    /// inline; for anything more, we'd need a different strategy.
+    private func makeQuizSession() -> LanguageModelSession {
+        LanguageModelSession {
+            "You are a precise educational tutor for an ADHD-focused study app."
+            "All questions and evaluations must be grounded ONLY in the material the user provides — never add outside information."
+            "Output exactly what the requested schema asks for. Do not add commentary."
+        }
+    }
 
     // MARK: - Content Filtering
 
     func isLessonContent(_ text: String) async -> Bool {
         let prompt = """
-        Determine if the following text is meaningful educational lesson content.
+        Is this text meaningful educational lesson content?
 
-        Answer FALSE for: branding, company names, copyright notices, page numbers,
-        headers, footers, image captions, navigation, table of contents, URLs, contact info.
-
-        Answer TRUE for: explanations of concepts, definitions, examples,
-        lesson narrative, educational facts.
+        FALSE for: branding, copyright notices, page numbers, headers, footers, image captions, navigation, table of contents, URLs, contact info.
+        TRUE for: explanations of concepts, definitions, examples, lesson narrative, educational facts.
 
         Text:
         \(text)
         """
         do {
-            let response = try await session.respond(to: prompt, generating: ContentRelevance.self)
+            let response = try await makeClassifierSession().respond(to: prompt, generating: ContentRelevance.self)
             return response.content.isLessonContent
         } catch {
             return true // fail open
@@ -111,63 +148,74 @@ final class FoundationModelService {
     func generateLessonTitle(representativeContent: String, keyTerms: [String]) async throws -> String {
         let termsLine = keyTerms.isEmpty ? "" : "Most frequent topic words: \(keyTerms.joined(separator: ", "))\n\n"
         let prompt = """
-        You are creating a short topic title for a lesson. Based on the most representative \
-        content below and the key terms, output a short noun phrase naming the main topic.
+        Produce a topic title for this lesson. 2-6 words, Title Case. Just the subject — \
+        no "Key Points", no "Lesson on...", no colons, no quotes.
 
-        Rules:
-        - 2 to 6 words
-        - Title Case (e.g., "The Water Cycle", "Cell Biology")
-        - Just the subject — no colons, no "Key Points", no "Summary", no "Lesson on..."
-        - Do NOT copy section headers
-        - Do NOT include quotes or trailing punctuation
-
-        Examples: "The Water Cycle", "Mitochondria and Chloroplasts", "Newton's Laws of Motion"
+        Examples: "The Water Cycle", "Mitochondria and Chloroplasts", "Newton's Laws of Motion".
 
         \(termsLine)Most representative content:
         \(representativeContent)
         """
-        let response = try await session.respond(to: prompt, generating: TitleResult.self)
+        let response = try await makeContentSession().respond(to: prompt, generating: TitleResult.self)
         return sanitizeTitle(response.content.title)
     }
 
     func generateModuleTitle(content: String, keyTerms: [String]) async throws -> (title: String, summary: String) {
-        let termsLine = keyTerms.isEmpty ? "" : "Topic words in this module: \(keyTerms.joined(separator: ", "))\n\n"
+        let termsLine = keyTerms.isEmpty ? "" : "Topic words: \(keyTerms.joined(separator: ", "))\n\n"
         let prompt = """
-        You are creating a module title for a section of a lesson. Output a short topic phrase \
-        (2-5 words) that names what this module covers, plus a one-sentence summary.
+        Produce a title (2-5 words, Title Case) and a one-sentence summary for this section of a lesson.
 
-        Rules:
-        - Title in Title Case, 2-5 words
-        - No colons, no "Key Points", no quotes
-        - Summary should be one clear sentence
+        The summary must:
+        - Start with a verb (Explains, Covers, Introduces, Describes)
+        - Be specific about the actual concepts
+        - Not restate the title; not use the word "module" or "section"
 
-        \(termsLine)Module content:
+        Good summary examples:
+        - "Explains how water changes between liquid, solid, and gas as it moves through the atmosphere."
+        - "Covers the four stages of the water cycle and how they connect."
+        - "Introduces mitochondria as the cell's energy producers and how ATP is made."
+
+        \(termsLine)Content:
         \(content)
         """
-        let response = try await session.respond(to: prompt, generating: ModuleTitleResult.self)
+        let response = try await makeContentSession().respond(to: prompt, generating: ModuleTitleResult.self)
         return (sanitizeTitle(response.content.title), response.content.summary.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    /// Generate flashcard-style study cards from module content. Called lazily on first view.
+    /// Focused retry for just the summary, in case the combined call returned empty.
+    func generateModuleSummary(content: String, keyTerms: [String]) async throws -> String {
+        let termsLine = keyTerms.isEmpty ? "" : "Topic words: \(keyTerms.joined(separator: ", "))\n\n"
+        let prompt = """
+        Write ONE specific sentence describing what a student would learn from this content. \
+        Start with a verb (Explains, Covers, Introduces, Describes). Be specific.
+
+        Examples:
+        - "Explains how water changes between liquid, solid, and gas."
+        - "Covers the four stages of the water cycle and how they connect."
+        - "Introduces mitochondria as the cell's energy producers."
+
+        \(termsLine)Content:
+        \(content)
+        """
+        let response = try await makeContentSession().respond(to: prompt, generating: SummaryOnlyResult.self)
+        return response.content.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Generate flashcard-style study cards from module content.
     /// Each card covers one discrete concept for ADHD-friendly carousel study.
     func generateStudyCards(content: String) async throws -> [(title: String, explanation: String)] {
         let trimmed = String(content.prefix(2500))
         let prompt = """
-        You are a tutor creating flashcards for a student with ADHD. Read the content below and \
-        produce 3-7 study cards. Each card must cover ONE distinct concept from the material — \
-        ideas should not overlap between cards.
+        Create 3-7 flashcards from the content below. Each card covers ONE distinct concept; cards should not overlap.
 
-        For each card:
+        Each card has:
         - Title: 3-6 words naming the concept
-        - Explanation: 2-3 short sentences in clear, simple language
-
-        Do NOT copy or paraphrase the source. Actually EXPLAIN each concept in your own words, \
-        like you're teaching it to someone new. Use examples or analogies if helpful.
+        - Explanation: 2-3 short sentences that EXPLAIN the concept in your own words. Use examples or analogies if helpful. Don't just paraphrase the source.
 
         Content:
         \(trimmed)
         """
-        let response = try await session.respond(to: prompt, generating: StudyCardsResult.self)
+        let response = try await makeContentSession().respond(to: prompt, generating: StudyCardsResult.self)
         return response.content.cards.map { card in
             (
                 title: card.title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -197,22 +245,139 @@ final class FoundationModelService {
         return title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // MARK: - Question Generation (RAG-aware)
+    // MARK: - Question Generation (multistep: plan concepts → one question each)
 
+    /// Multistep generation that's far more reliable than asking for N questions in one shot.
+    /// Step 1: ask the model to identify up to N distinct concepts from the content (small output).
+    /// Step 2: for each concept, ask for ONE question (tiny output per call).
+    /// Each individual call uses a tiny fraction of the 4096-token budget, leaving room for
+    /// tool schemas in step 2.
     func generateQuestions(context: String, count: Int = 3, difficulty: DifficultyLevel = .medium) async throws -> [Question] {
+        try await generateQuestions(context: context, count: count, difficulty: difficulty, progress: nil)
+    }
+
+    /// Variant that reports progress as concepts are planned and individual questions are produced.
+    /// Progress: 0.0 → 0.1 (planning concepts), 0.1 → 1.0 (generating questions one by one).
+    func generateQuestions(
+        context: String,
+        count: Int = 3,
+        difficulty: DifficultyLevel = .medium,
+        progress: ((Double, String) -> Void)?
+    ) async throws -> [Question] {
+        progress?(0.05, "Identifying concepts…")
+
+        let rawConcepts = (try? await generateQuestionConcepts(context: context, maxCount: count)) ?? []
+        // Dedupe concepts case-insensitively so we don't run two passes on the same idea.
+        var seen = Set<String>()
+        let concepts = rawConcepts.filter { c in
+            let key = c.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { return false }
+            return seen.insert(key).inserted
+        }
+        guard !concepts.isEmpty else { return [] }
+
+        let target = min(count, concepts.count)
+        progress?(0.1, "Found \(concepts.count) concepts")
+
+        var questions: [Question] = []
+        var askedNormalized = Set<String>()  // for cheap dedupe check on outputs
+        for (index, concept) in concepts.prefix(count).enumerated() {
+            let frac = Double(index) / Double(target)
+            progress?(0.1 + frac * 0.9, "Generating question \(index + 1) of \(target)…")
+
+            // Sliding window of already-asked question prompts.
+            let previousPrompts = questions.map(\.prompt)
+
+            guard let q = try? await generateSingleQuestion(
+                context: context,
+                concept: concept,
+                difficulty: difficulty,
+                previousQuestions: previousPrompts
+            ) else { continue }
+
+            let p = q.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            let a = q.expectedAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !p.isEmpty, !a.isEmpty else { continue }
+
+            // Defensive: drop the question if it's a near-duplicate of one we already kept.
+            // Uses a simplified normalized form for cheap comparison.
+            let key = normalizedQuestionKey(p)
+            if askedNormalized.contains(key) { continue }
+            askedNormalized.insert(key)
+
+            questions.append(Question(prompt: p, expectedAnswer: a, difficulty: q.difficulty))
+        }
+        progress?(1.0, "Done")
+        return questions
+    }
+
+    /// Normalize a question prompt for cheap duplicate detection — lowercase, alphanumerics only,
+    /// stopwords stripped. So "What is the water cycle?" and "What's the water cycle" both
+    /// collapse to "water cycle" and dedupe naturally.
+    private func normalizedQuestionKey(_ s: String) -> String {
+        let stopwords: Set<String> = ["what", "is", "the", "a", "an", "are", "how", "does", "do",
+                                       "can", "you", "your", "of", "to", "for", "in", "on", "at",
+                                       "and", "or", "this", "that", "these", "those", "it"]
+        return s.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty && !stopwords.contains($0) }
+            .joined(separator: " ")
+    }
+
+    /// Step 1 of the pipeline: ask the model what concepts can be quizzed from this content.
+    /// Output is just a list of strings — small schema, fast generation.
+    private func generateQuestionConcepts(context: String, maxCount: Int) async throws -> [String] {
         let prompt = """
-        You are an educational tutor. Generate exactly \(count) active recall questions \
-        based ONLY on the following study material. Do NOT add information not present below. \
-        Each question should test \(difficulty.systemPrompt). \
-        Keep questions clear, concise, and focused on one concept at a time.
+        Identify \(maxCount) distinct concepts from the study material below — one per item. \
+        Aim for exactly \(maxCount). Only return fewer if the material genuinely has fewer \
+        distinct ideas (in which case stop at the natural limit, don't pad with duplicates). \
+        Each concept title is 2-5 words. Avoid overlapping or near-duplicate concepts.
 
         Study material:
         \(context)
         """
-        let response = try await session.respond(to: prompt, generating: QuestionsResult.self)
-        return response.content.questions.map { q in
-            Question(prompt: q.prompt, expectedAnswer: q.expectedAnswer, difficulty: q.difficulty)
+        let response = try await makeContentSession().respond(to: prompt, generating: ConceptListResult.self)
+        return response.content.concepts
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Step 2 of the pipeline: generate ONE question for the given concept.
+    /// `previousQuestions` is a sliding window of recently-asked question prompts so the model
+    /// can avoid repeating itself. Tiny output schema leaves plenty of budget headroom.
+    private func generateSingleQuestion(
+        context: String,
+        concept: String,
+        difficulty: DifficultyLevel,
+        previousQuestions: [String]
+    ) async throws -> GeneratedQuestion {
+        let avoidBlock: String
+        if previousQuestions.isEmpty {
+            avoidBlock = ""
+        } else {
+            // Keep the window bounded so the prompt doesn't grow unbounded as the quiz progresses.
+            let recent = previousQuestions.suffix(8)
+            let bulleted = recent.enumerated().map { i, q in "\(i + 1). \(q)" }.joined(separator: "\n")
+            avoidBlock = """
+
+                Questions already asked in this quiz — do NOT repeat or paraphrase any of these. \
+                Pick a different angle on the concept:
+                \(bulleted)
+
+                """
         }
+
+        let prompt = """
+        Generate ONE active recall question about this concept: "\(concept)"
+
+        The question should test \(difficulty.systemPrompt). Use ONLY information present in \
+        the material below — do not introduce facts that aren't there. Keep it clear and focused.\(avoidBlock)
+
+        Study material:
+        \(context)
+        """
+        let response = try await makeQuizSession().respond(to: prompt, generating: GeneratedQuestion.self)
+        return response.content
     }
 
     // MARK: - Answer Evaluation
@@ -239,18 +404,18 @@ final class FoundationModelService {
         }
 
         let prompt = """
-        You are a tutor evaluating a student's answer.
+        Evaluate this student's answer.
 
         \(leniency)
 
         In the explanation, briefly state what a complete answer would include.
-        Keep encouragement genuine and brief.
 
         Question: \(question.prompt)
         Expected answer: \(question.expectedAnswer)
         Student's answer: \(userAnswer)
         """
-        let response = try await session.respond(to: prompt, generating: FeedbackResult.self)
+        // No tools — the question, expected answer, and student answer are all in the prompt.
+        let response = try await makeQuizSession().respond(to: prompt, generating: FeedbackResult.self)
         let r = response.content
         return Feedback(isCorrect: r.isCorrect, explanation: r.explanation, encouragement: r.encouragement)
     }
@@ -266,13 +431,12 @@ final class FoundationModelService {
         }.joined(separator: "\n")
 
         let prompt = """
-        You are a study planner. Suggest 3-5 lessons to study next.
-        Prioritize lessons not studied or with low accuracy.
+        Suggest 3-5 lessons to study next. Prioritize lessons not yet studied or with low accuracy.
 
         Lessons:
         \(summaries)
         """
-        let response = try await session.respond(to: prompt, generating: SuggestedPlanResult.self)
+        let response = try await makeContentSession().respond(to: prompt, generating: SuggestedPlanResult.self)
         let items = response.content.items.compactMap { item -> SuggestedPlanItem? in
             guard item.lessonIndex >= 0, item.lessonIndex < lessons.count else { return nil }
             let l = lessons[item.lessonIndex]

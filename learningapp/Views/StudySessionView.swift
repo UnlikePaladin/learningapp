@@ -59,11 +59,14 @@ struct StudySessionView: View {
 
     private var loadingView: some View {
         VStack(spacing: 16) {
-            ProgressView().scaleEffect(1.5)
-            Text("Generating questions...")
+            ProgressView(value: coordinator.quizProgress)
+                .frame(width: 220)
+            Text(coordinator.quizStatus.isEmpty ? "Generating questions…" : coordinator.quizStatus)
                 .font(.headline)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
+        .padding()
     }
 
     private func completeView(correct: Int, total: Int) -> some View {

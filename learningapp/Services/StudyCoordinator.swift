@@ -7,6 +7,10 @@ final class StudyCoordinator {
     var ingestionProgress: Double = 0
     var ingestionStatus: String = ""
 
+    /// Quiz generation progress (0.0 to 1.0). Updated as concepts are planned and questions generated.
+    var quizProgress: Double = 0
+    var quizStatus: String = ""
+
     private let modelService = FoundationModelService()
     private let ragService = RAGService()
     private let embeddingService = EmbeddingService()
@@ -46,7 +50,8 @@ final class StudyCoordinator {
         await processSource(source, lesson: lesson, context: context)
     }
 
-    /// Process a single source: chunk → AI filter → embed → re-cluster all chunks for the lesson.
+    /// Process a single source: chunk → AI filter → embed → cluster the NEW content into NEW modules.
+    /// Existing modules and their cards stay intact.
     private func processSource(_ source: Source, lesson: Lesson, context: ModelContext) async {
         isProcessing = true
         ingestionProgress = 0
@@ -73,7 +78,7 @@ final class StudyCoordinator {
         }
         if relevantChunks.isEmpty { relevantChunks = rawChunks }
 
-        // 3. Embed each chunk (we don't store yet — clustering happens first)
+        // 3. Embed each new chunk
         ingestionStatus = "Embedding chunks..."
         var newEmbedded: [ChunkWithEmbedding] = []
         for (i, text) in relevantChunks.enumerated() {
@@ -82,62 +87,56 @@ final class StudyCoordinator {
             newEmbedded.append(ChunkWithEmbedding(text: text, vector: vec, sourceID: source.id, order: i))
         }
 
-        // 4. Combine with existing chunks for this lesson, re-cluster all of them
+        guard !newEmbedded.isEmpty else { return }
+
+        // 4. Cluster ONLY the new chunks into new modules.
+        // Existing modules and cards stay untouched.
         ingestionStatus = "Organizing into modules..."
         ingestionProgress = 0.7
         let lessonID = lesson.id
-        let existingChunks = (try? context.fetch(FetchDescriptor<StoredChunk>(predicate: #Predicate { $0.lessonID == lessonID }))) ?? []
-        let existingEmbedded = existingChunks.map {
-            ChunkWithEmbedding(text: $0.text, vector: $0.embedding, sourceID: $0.sourceID, order: $0.order)
-        }
-        let allChunks = existingEmbedded + newEmbedded
-
-        // Wipe old modules + chunks; we'll rebuild them
-        let oldModules = (try? context.fetch(FetchDescriptor<Module>(predicate: #Predicate { $0.lessonID == lessonID }))) ?? []
-        oldModules.forEach { context.delete($0) }
-        existingChunks.forEach { context.delete($0) }
-
-        let clustered = ModuleClusteringService.cluster(chunks: allChunks)
+        let existingModuleCount = (try? context.fetch(FetchDescriptor<Module>(predicate: #Predicate { $0.lessonID == lessonID })))?.count ?? 0
+        let clustered = ModuleClusteringService.cluster(chunks: newEmbedded)
 
         // 5. For each cluster, generate a title + create Module + StoredChunks
         ingestionStatus = "Generating module titles..."
-        for (moduleOrder, cluster) in clustered.enumerated() {
-            ingestionProgress = 0.7 + Double(moduleOrder) / Double(clustered.count) * 0.2
+        for (clusterIdx, cluster) in clustered.enumerated() {
+            ingestionProgress = 0.7 + Double(clusterIdx) / Double(clustered.count) * 0.2
 
-            let moduleContent = cluster.chunks.map(\.text).joined(separator: "\n").prefix(1500)
+            let moduleOrder = existingModuleCount + clusterIdx
+            let moduleContent = String(cluster.chunks.map(\.text).joined(separator: "\n").prefix(1500))
             let combinedText = cluster.chunks.map(\.text).joined(separator: " ")
             let keyTerms = TextAnalysis.extractKeyTerms(combinedText, topN: 6)
 
-            // Build a fallback title from the top key terms (capitalized).
-            // Used if the AI title generator fails or returns empty.
             let fallbackTitle: String = {
                 let topTerms = keyTerms.prefix(3).map { $0.capitalized }
                 if topTerms.isEmpty { return "Section \(moduleOrder + 1)" }
                 return topTerms.joined(separator: " & ")
             }()
 
-            // Fallback summary: first ~140 chars of the content, ending at a sentence boundary.
-            let fallbackSummary: String = {
-                let text = combinedText.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !text.isEmpty else { return "" }
-                let truncated = String(text.prefix(140))
-                if let lastPeriod = truncated.lastIndex(where: { ".!?".contains($0) }) {
-                    return String(truncated[..<truncated.index(after: lastPeriod)])
-                }
-                if let lastSpace = truncated.lastIndex(of: " ") {
-                    return String(truncated[..<lastSpace]) + "…"
-                }
-                return truncated + "…"
-            }()
-
+            // Try to get a real title + summary from the model
             var moduleTitle = fallbackTitle
-            var moduleSummary = fallbackSummary
+            var moduleSummary = ""
             if let result = try? await modelService.generateModuleTitle(
-                content: String(moduleContent),
+                content: moduleContent,
                 keyTerms: keyTerms
             ) {
                 if !result.title.isEmpty { moduleTitle = result.title }
                 if !result.summary.isEmpty { moduleSummary = result.summary }
+            }
+
+            // If summary is empty, retry with a focused summary-only call
+            if moduleSummary.isEmpty {
+                if let retrySummary = try? await modelService.generateModuleSummary(
+                    content: moduleContent,
+                    keyTerms: keyTerms
+                ), !retrySummary.isEmpty {
+                    moduleSummary = retrySummary
+                }
+            }
+
+            // Last resort: build a key-term-based summary (NEVER use raw text)
+            if moduleSummary.isEmpty {
+                moduleSummary = buildKeyTermSummary(keyTerms: keyTerms, title: moduleTitle)
             }
 
             let module = Module(lessonID: lesson.id, title: moduleTitle, summary: moduleSummary, order: moduleOrder)
@@ -161,10 +160,10 @@ final class StudyCoordinator {
             ingestionStatus = "Generating lesson title..."
             ingestionProgress = 0.95
             let titleSource = ragService.mostRepresentativeChunks(
-                from: allChunks.map { (text: $0.text, vector: $0.vector) },
+                from: newEmbedded.map { (text: $0.text, vector: $0.vector) },
                 topK: 3
             ).joined(separator: "\n\n")
-            let allText = allChunks.map(\.text).joined(separator: " ")
+            let allText = newEmbedded.map(\.text).joined(separator: " ")
             let keyTerms = TextAnalysis.extractKeyTerms(allText, topN: 8)
             if let title = try? await modelService.generateLessonTitle(
                 representativeContent: titleSource.isEmpty ? source.rawText : titleSource,
@@ -182,6 +181,23 @@ final class StudyCoordinator {
         try? context.save()
     }
 
+    /// Build a clean fallback summary from key terms (never raw text).
+    /// Used only when both AI calls failed to produce a summary.
+    private func buildKeyTermSummary(keyTerms: [String], title: String) -> String {
+        let topTerms = keyTerms.prefix(3).map { $0.capitalized }
+        if topTerms.isEmpty {
+            return "Covers concepts related to \(title)."
+        }
+        if topTerms.count == 1 {
+            return "Covers \(topTerms[0])."
+        }
+        if topTerms.count == 2 {
+            return "Covers \(topTerms[0]) and \(topTerms[1])."
+        }
+        let allButLast = topTerms.dropLast().joined(separator: ", ")
+        return "Covers \(allButLast), and \(topTerms.last!)."
+    }
+
     // MARK: - Quiz generation (for Lesson, Module, or CustomStudyPlan)
 
     func generateQuestions(
@@ -191,11 +207,39 @@ final class StudyCoordinator {
         difficulty: DifficultyLevel,
         context: ModelContext
     ) async -> [Question] {
-        let chunks = ragService.retrieveRelevantChunks(query: topicHint, scope: scope, from: context)
+        quizProgress = 0
+        quizStatus = "Finding relevant content…"
+        defer {
+            quizProgress = 0
+            quizStatus = ""
+        }
+
+        // Scale RAG retrieval with the user's requested count. A 5-question quiz only needs
+        // a few representative chunks; a 20-question quiz needs much broader context so the
+        // model has enough distinct concepts to pull from.
+        let topK = max(3, min(10, (count + 2) / 3))
+        let maxChars = max(1500, min(4000, count * 200))
+        let chunks = ragService.retrieveRelevantChunks(
+            query: topicHint,
+            scope: scope,
+            from: context,
+            topK: topK,
+            maxChars: maxChars
+        )
         let ragContext = ragService.buildContext(from: chunks)
         guard !ragContext.isEmpty else { return [] }
+
         do {
-            return try await modelService.generateQuestions(context: ragContext, count: count, difficulty: difficulty)
+            return try await modelService.generateQuestions(
+                context: ragContext,
+                count: count,
+                difficulty: difficulty
+            ) { [weak self] frac, status in
+                Task { @MainActor in
+                    self?.quizProgress = frac
+                    self?.quizStatus = status
+                }
+            }
         } catch {
             return []
         }
