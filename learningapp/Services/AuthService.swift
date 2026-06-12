@@ -74,12 +74,12 @@ final class AuthService {
     private func friendlyError(_ error: Error) -> String {
         let code = AuthErrorCode(rawValue: (error as NSError).code)
         switch code {
-        case .invalidEmail:      return "El correo no es válido."
-        case .emailAlreadyInUse: return "Ese correo ya está registrado."
-        case .weakPassword:      return "La contraseña debe tener al menos 6 caracteres."
-        case .wrongPassword:     return "Contraseña incorrecta."
-        case .userNotFound:      return "No existe cuenta con ese correo."
-        case .networkError:      return "Sin conexión a internet."
+        case .invalidEmail:      return "That email address isn't valid."
+        case .emailAlreadyInUse: return "An account already exists for that email."
+        case .weakPassword:      return "Password must be at least 6 characters."
+        case .wrongPassword:     return "Wrong password."
+        case .userNotFound:      return "No account found for that email."
+        case .networkError:      return "No internet connection."
         default:                 return error.localizedDescription
         }
     }

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import FirebaseCore
+import FirebaseAuth
 
 @main
 struct learningappApp: App {
@@ -37,6 +38,18 @@ struct learningappApp: App {
 
     init() {
         FirebaseApp.configure()          // must run first
+
+        // The iOS Keychain persists across app deletion, so Firebase's stored auth token
+        // would otherwise survive a fresh install. UserDefaults lives in the app sandbox
+        // and IS wiped on delete — so we use it as a sentinel: if this key is absent, this
+        // is the app's first launch (or the user wiped data), and we should sign out
+        // any leftover keychain credentials before initializing AuthService.
+        let installedKey = "learningapp.hasLaunchedBefore"
+        if !UserDefaults.standard.bool(forKey: installedKey) {
+            try? Auth.auth().signOut()
+            UserDefaults.standard.set(true, forKey: installedKey)
+        }
+
         _authService = State(initialValue: AuthService())
     }
 
