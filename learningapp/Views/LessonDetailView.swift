@@ -23,18 +23,29 @@ struct LessonDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                // Quiz button - quiz the whole lesson
                 Button {
                     startingQuiz = QuizScope(kind: .lesson(lesson), title: lesson.title)
                 } label: {
-                    Label("Quiz This Lesson", systemImage: "play.fill")
-                        .font(.title3.bold())
-                        .frame(maxWidth: .infinity, minHeight: 56)
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(.white.opacity(0.2))
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "play.fill")
+                                .font(.title3)
+                                .foregroundStyle(.white)
+                        }
+                        Text("Quiz This Lesson")
+                            .font(.title3.bold())
+                            .foregroundStyle(.white)
+                        Spacer()
+                    }
+                    .padding(18)
+                    .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 18))
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
 
-                // Modules
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     Text("Modules")
                         .font(.headline)
                     if lessonModules.isEmpty {
@@ -48,8 +59,7 @@ struct LessonDetailView: View {
                     }
                 }
 
-                // Sources
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Text("Sources")
                             .font(.headline)
@@ -129,34 +139,53 @@ struct LessonDetailView: View {
         NavigationLink {
             ModuleContentView(lesson: lesson, module: module)
         } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(module.title)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(.tertiary)
-                        .font(.caption)
+            HStack(spacing: 0) {
+                VStack {
+                    Image(systemName: "book.pages.fill")
+                        .font(.title3)
+                        .foregroundStyle(.white)
                 }
-                if !module.summary.isEmpty {
-                    Text(module.summary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
+                .frame(width: 58)
+                .frame(maxHeight: .infinity)
+                .background(Color("Darkgreen"))
+
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text(module.title)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.tertiary)
+                            .font(.caption)
+                    }
+                    if !module.summary.isEmpty {
+                        Text(module.summary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                 }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .frame(minHeight: 72)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
     }
 
     private func sourceRow(_ source: Source) -> some View {
-        HStack {
-            Image(systemName: iconForSource(source.sourceType))
-                .foregroundStyle(.blue)
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color("Lightgreen").opacity(0.15))
+                    .frame(width: 36, height: 36)
+                Image(systemName: iconForSource(source.sourceType))
+                    .font(.caption)
+                    .foregroundStyle(Color("Lightgreen"))
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(source.fileName ?? sourceLabel(source.sourceType))
                     .font(.caption)
@@ -167,8 +196,8 @@ struct LessonDetailView: View {
             }
             Spacer()
         }
-        .padding(8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .padding(10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func iconForSource(_ type: SourceType) -> String {

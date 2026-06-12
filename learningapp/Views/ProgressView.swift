@@ -38,21 +38,18 @@ struct ProgressDashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    // Streak & XP header
-                    HStack(spacing: 20) {
-                        statCard(icon: "flame.fill", color: .orange, value: "\(streak)", label: "Day Streak")
-                        statCard(icon: "star.fill", color: .purple, value: "\(xp)", label: "XP Earned")
+                VStack(spacing: 14) {
+                    HStack(spacing: 14) {
+                        statCard(icon: "flame.fill", color: Color("Orange"), value: "\(streak)", label: "Day Streak")
+                        statCard(icon: "star.fill", color: Color("Lightgreen"), value: "\(xp)", label: "XP Earned")
                     }
 
-                    // Accuracy & Questions
-                    HStack(spacing: 20) {
-                        statCard(icon: "checkmark.circle.fill", color: .green, value: String(format: "%.0f%%", accuracy), label: "Accuracy")
-                        statCard(icon: "questionmark.circle.fill", color: .blue, value: "\(totalQuestions)", label: "Questions")
+                    HStack(spacing: 14) {
+                        statCard(icon: "checkmark.circle.fill", color: Color("Darkgreen"), value: String(format: "%.0f%%", accuracy), label: "Accuracy")
+                        statCard(icon: "questionmark.circle.fill", color: Color("Red"), value: "\(totalQuestions)", label: "Questions")
                     }
 
-                    // 7-day chart
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 14) {
                         Text("Last 7 Days")
                             .font(.headline)
 
@@ -61,8 +58,8 @@ struct ProgressDashboardView: View {
                                 x: .value("Day", item.date, unit: .day),
                                 y: .value("Questions", item.count)
                             )
-                            .foregroundStyle(.blue.gradient)
-                            .cornerRadius(4)
+                            .foregroundStyle(Color("Lightgreen").gradient)
+                            .cornerRadius(8)
                         }
                         .chartXAxis {
                             AxisMarks(values: .stride(by: .day)) { _ in
@@ -72,32 +69,39 @@ struct ProgressDashboardView: View {
                         }
                         .frame(height: 160)
                     }
-                    .padding()
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .padding(18)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
 
                     if sessions.isEmpty {
-                        ContentUnavailableView("No sessions yet", systemImage: "chart.bar", description: Text("Complete a study session to see your progress here."))
+                        ContentUnavailableView(
+                            "No sessions yet",
+                            systemImage: "chart.bar",
+                            description: Text("Complete a study session to see your progress here.")
+                        )
                     }
                 }
                 .padding()
             }
+            .background(Color("Darkgreen").opacity(0.05).ignoresSafeArea())
             .navigationTitle("Progress")
         }
     }
 
     private func statCard(icon: String, color: Color, value: String, label: String) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(color)
+                .foregroundStyle(.white.opacity(0.9))
             Text(value)
                 .font(.title.bold())
+                .foregroundStyle(.white)
             Text(label)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.8))
         }
-        .frame(maxWidth: .infinity, minHeight: 100)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .frame(maxWidth: .infinity, minHeight: 110)
+        .padding(.vertical, 8)
+        .background(color, in: RoundedRectangle(cornerRadius: 18))
     }
 }
 
