@@ -46,12 +46,23 @@ struct ProfileView: View {
                 AvatarPickerSheet(
                     selectedAvatar: profile.avatarID,
                     selectedBackground: profile.avatarBackground,
+                    customAvatarData: profile.customAvatarData,
                     onPickAvatar: { newID in
                         profile.avatarID = newID
+                        // New giraffe → discard the previous crop so the new asset is shown raw.
+                        profile.customAvatarData = nil
                         try? modelContext.save()
                     },
                     onPickBackground: { newID in
                         profile.avatarBackground = newID
+                        try? modelContext.save()
+                    },
+                    onSaveCrop: { data in
+                        profile.customAvatarData = data
+                        try? modelContext.save()
+                    },
+                    onClearCrop: {
+                        profile.customAvatarData = nil
                         try? modelContext.save()
                     }
                 )
@@ -105,18 +116,18 @@ struct ProfileView: View {
             showingAvatarPicker = true
         } label: {
             ZStack {
-                Circle()
-                    .fill(AvatarBackground.color(for: profile.avatarBackground))
-                    .frame(width: 115, height: 115)
-                    .shadow(radius: 4)
-                Image(profile.avatarID)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 105, height: 105)
-                    .clipShape(Circle())
+                AvatarThumbnailView(
+                    avatarID: profile.avatarID,
+                    backgroundID: profile.avatarBackground,
+                    customData: profile.customAvatarData,
+                    size: 115
+                )
+                .shadow(radius: 4)
+
                 Circle()
                     .stroke(Color.white, lineWidth: 3)
                     .frame(width: 115, height: 115)
+
                 Image(systemName: "pencil.circle.fill")
                     .font(.title2)
                     .foregroundStyle(.white, Color("Darkgreen"))
@@ -222,34 +233,63 @@ private struct InterestChip: View {
 private struct AvatarPickerSheet: View {
     let selectedAvatar: String
     let selectedBackground: String
+    let customAvatarData: Data?
     let onPickAvatar: (String) -> Void
     let onPickBackground: (String) -> Void
+    let onSaveCrop: (Data) -> Void
+    let onClearCrop: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var showingCrop = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Live preview
+                // Live preview — tap to open crop editor
                 HStack {
                     Spacer()
-                    ZStack {
-                        Circle()
-                            .fill(AvatarBackground.color(for: selectedBackground))
-                            .frame(width: 110, height: 110)
+                    Button {
+                        showingCrop = true
+                    } label: {
+                        ZStack {
+                            AvatarThumbnailView(
+                                avatarID: selectedAvatar,
+                                backgroundID: selectedBackground,
+                                customData: customAvatarData,
+                                size: 110
+                            )
                             .shadow(radius: 3)
-                        Image(selectedAvatar)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 100, height: 100)
-                            .clipShape(Circle())
-                        Circle()
-                            .stroke(Color.white, lineWidth: 3)
-                            .frame(width: 110, height: 110)
+                            Circle()
+                                .stroke(Color.white, lineWidth: 3)
+                                .frame(width: 110, height: 110)
+                            // Subtle "crop" affordance
+                            Image(systemName: "crop")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .padding(6)
+                                .background(Color("Darkgreen"), in: Circle())
+                                .offset(x: 38, y: 38)
+                        }
                     }
+                    .buttonStyle(.plain)
                     Spacer()
                 }
                 .padding(.top, 20)
+
+                // Hint
+                HStack {
+                    Spacer()
+                    Text("Tap preview to crop")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if customAvatarData != nil {
+                        Button("Reset crop", role: .destructive) {
+                            onClearCrop()
+                        }
+                        .font(.caption2)
+                    }
+                    Spacer()
+                }
 
                 // Giraffes
                 Text("Giraffe")
@@ -334,6 +374,18 @@ private struct AvatarPickerSheet: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 50)
+        }
+        .fullScreenCover(isPresented: $showingCrop) {
+            AvatarCropView(
+                sourceAvatarID: selectedAvatar,
+                backgroundID: selectedBackground,
+                initialImage: customAvatarData.flatMap { UIImage(data: $0) },
+                onCancel: { showingCrop = false },
+                onSave: { data in
+                    onSaveCrop(data)
+                    showingCrop = false
+                }
+            )
         }
     }
 }
@@ -453,3 +505,4 @@ private struct FlowLayout: Layout {
         }
     }
 }
+
