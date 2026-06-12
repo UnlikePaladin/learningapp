@@ -10,8 +10,8 @@ struct ProgressDashboardView: View {
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 GiraffeBannerView(
-                    title: "Mi Progreso",
-                    subtitle: "¡Sigue así!",
+                    title: "My Progress",
+                    subtitle: "Good job!",
                     giraffeImage: "clear_happy_giraffe"
                 )
             }

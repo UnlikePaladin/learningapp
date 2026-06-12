@@ -81,8 +81,8 @@ struct HomeView: View {
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 GiraffeBannerView(
-                    title: "¡Listo para Aprender!",
-                    subtitle: "Pequeños pasos, grandes resultados",
+                    title: "Ready to learn!",
+                    subtitle: "Small steps, big results",
                     giraffeImage: "clear_happy_giraffe"
                 )
             }

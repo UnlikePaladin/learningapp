@@ -31,7 +31,7 @@ struct SplashView: View {
                         .offset(y: titleOffset)
                         .opacity(titleOpacity)
 
-                    Text("Tu compañero de aprendizaje")
+                    Text("Your learning companion")
                         .font(.subheadline)
                         .foregroundStyle(Color(red: 0.294, green: 0.490, blue: 0.286).opacity(0.7))
                         .opacity(taglineOpacity)
