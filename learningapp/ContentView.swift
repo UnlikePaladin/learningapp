@@ -41,6 +41,9 @@ struct ContentView: View {
                 Tab("Progress", systemImage: "chart.bar") {
                     ProgressDashboardView()
                 }
+                Tab("You", systemImage: "person.crop.circle") {
+                    ProfileView()
+                }
             }
 
             Button {

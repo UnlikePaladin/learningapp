@@ -13,6 +13,7 @@ struct learningappApp: App {
             CustomStudyPlan.self,
             SessionResult.self,
             ReviewSchedule.self,
+            UserProfile.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
