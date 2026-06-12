@@ -2,18 +2,20 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
-    @Query(sort: \StudyMaterial.dateAdded, order: .reverse) private var materials: [StudyMaterial]
+    @Query(sort: \Lesson.dateCreated, order: .reverse) private var lessons: [Lesson]
+    @Query(sort: \SessionResult.date, order: .reverse) private var sessions: [SessionResult]
     @Environment(\.modelContext) private var modelContext
+
     @State private var showingInput = false
-    @State private var selectedMaterial: StudyMaterial?
-    @State private var isIngesting = false
     @State private var coordinator = StudyCoordinator()
+
+    private var recentLessons: [Lesson] { Array(lessons.prefix(3)) }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    // Greeting header with streak
+                VStack(alignment: .leading, spacing: 24) {
+                    // Header
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Ready to learn?")
@@ -26,44 +28,32 @@ struct HomeView: View {
                         StreakBadgeView()
                     }
 
-                    // View Study Plan
-                    NavigationLink {
-                        StudyPlanView()
-                    } label: {
-                        Label("View Study Plan", systemImage: "list.clipboard")
-                            .font(.subheadline.bold())
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.bordered)
-
-                    // Start Studying button
+                    // Quick add
                     Button {
                         showingInput = true
                     } label: {
-                        Label("Start Studying", systemImage: "play.fill")
+                        Label("Add New Lesson", systemImage: "plus.circle.fill")
                             .font(.title3.bold())
                             .frame(maxWidth: .infinity, minHeight: 56)
                     }
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
 
-                    // Recent materials
+                    // Recent lessons
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Recent Materials")
+                        Text("Recent Lessons")
                             .font(.headline)
-
-                        if materials.isEmpty {
+                        if recentLessons.isEmpty {
                             ContentUnavailableView(
-                                "No materials yet",
-                                systemImage: "tray",
-                                description: Text("Your recent study materials will appear here.")
+                                "No lessons yet",
+                                systemImage: "book.closed",
+                                description: Text("Tap above to create your first lesson.")
                             )
                         } else {
-                            ForEach(materials) { material in
+                            ForEach(recentLessons) { lesson in
                                 NavigationLink {
-                                    StudySessionView(material: material)
+                                    LessonDetailView(lesson: lesson)
                                 } label: {
-                                    materialRow(material)
+                                    lessonRow(lesson)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -74,21 +64,23 @@ struct HomeView: View {
             }
             .navigationTitle("Home")
             .sheet(isPresented: $showingInput) {
-                ContentInputView(onSave: { material in
-                    isIngesting = true
+                ContentInputView { rawText, sourceType, fileName in
                     Task {
-                        await coordinator.ingestMaterial(material, context: modelContext)
-                        isIngesting = false
-                        selectedMaterial = material
+                        await coordinator.createLesson(
+                            rawText: rawText,
+                            sourceType: sourceType,
+                            fileName: fileName,
+                            context: modelContext
+                        )
                     }
-                })
+                }
             }
             .overlay {
-                if isIngesting {
+                if coordinator.isProcessing {
                     VStack(spacing: 12) {
                         ProgressView(value: coordinator.ingestionProgress)
-                            .frame(width: 200)
-                        Text(coordinator.ingestionStatus.isEmpty ? "Processing material..." : coordinator.ingestionStatus)
+                            .frame(width: 220)
+                        Text(coordinator.ingestionStatus.isEmpty ? "Processing..." : coordinator.ingestionStatus)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -96,27 +88,25 @@ struct HomeView: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
-            .navigationDestination(item: $selectedMaterial) { material in
-                StudySessionView(material: material)
-            }
         }
     }
 
-    private func materialRow(_ material: StudyMaterial) -> some View {
+    private func lessonRow(_ lesson: Lesson) -> some View {
         HStack {
-            Image(systemName: material.sourceType == .camera ? "camera.fill" : "doc.text.fill")
+            Image(systemName: "book.fill")
                 .foregroundStyle(.blue)
             VStack(alignment: .leading, spacing: 2) {
-                Text(material.title.isEmpty ? String(material.rawText.prefix(60)) : material.title)
-                    .font(.subheadline)
+                Text(lesson.title.isEmpty ? "Untitled" : lesson.title)
+                    .font(.subheadline.bold())
                     .lineLimit(1)
-                Text(material.dateAdded, style: .relative)
+                Text(lesson.dateCreated, format: .relative(presentation: .named))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             Image(systemName: "chevron.right")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.tertiary)
+                .font(.caption)
         }
         .padding(12)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
@@ -125,5 +115,4 @@ struct HomeView: View {
 
 #Preview {
     HomeView()
-        .modelContainer(for: StudyMaterial.self, inMemory: true)
 }

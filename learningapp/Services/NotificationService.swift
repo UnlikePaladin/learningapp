@@ -6,15 +6,15 @@ struct NotificationService {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
     }
 
-    static func scheduleReviewReminder(for material: StudyMaterial, at date: Date) {
+    static func scheduleReviewReminder(for lesson: Lesson, at date: Date) {
         let content = UNMutableNotificationContent()
         content.title = "Time to review!"
-        content.body = "Your material is due for spaced repetition review."
+        content.body = lesson.title.isEmpty ? "Your lesson is due for review." : "Time to review: \(lesson.title)"
         content.sound = .default
 
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        let request = UNNotificationRequest(identifier: "review-\(material.id.uuidString)", content: content, trigger: trigger)
+        let request = UNNotificationRequest(identifier: "review-\(lesson.id.uuidString)", content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request)
     }
 

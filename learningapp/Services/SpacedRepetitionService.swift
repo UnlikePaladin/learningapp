@@ -4,16 +4,16 @@ import SwiftData
 @Model
 final class ReviewSchedule {
     @Attribute(.unique) var id: UUID
-    var materialID: UUID
+    var lessonID: UUID
     var easeFactor: Double
     var interval: Int
     var repetitions: Int
     var nextReviewDate: Date
     var lastReviewDate: Date
 
-    init(id: UUID = UUID(), materialID: UUID, easeFactor: Double = 2.5, interval: Int = 0, repetitions: Int = 0, nextReviewDate: Date = Date(), lastReviewDate: Date = Date()) {
+    init(id: UUID = UUID(), lessonID: UUID, easeFactor: Double = 2.5, interval: Int = 0, repetitions: Int = 0, nextReviewDate: Date = Date(), lastReviewDate: Date = Date()) {
         self.id = id
-        self.materialID = materialID
+        self.lessonID = lessonID
         self.easeFactor = easeFactor
         self.interval = interval
         self.repetitions = repetitions
@@ -45,32 +45,31 @@ struct SpacedRepetitionService {
         schedule.nextReviewDate = Calendar.current.date(byAdding: .day, value: schedule.interval, to: Date()) ?? Date()
     }
 
-    /// Convert session accuracy (0.0-1.0) to SM-2 quality (0-5)
     static func qualityFromAccuracy(_ accuracy: Double) -> Int {
         return min(5, max(0, Int(round(accuracy * 5.0))))
     }
 
-    static func getMaterialsDueForReview(context: ModelContext) -> [StudyMaterial] {
+    static func getLessonsDueForReview(context: ModelContext) -> [Lesson] {
         let now = Date()
         let schedulesDescriptor = FetchDescriptor<ReviewSchedule>(
             predicate: #Predicate { $0.nextReviewDate <= now }
         )
         let schedules = (try? context.fetch(schedulesDescriptor)) ?? []
-        let dueIDs = Set(schedules.map(\.materialID))
+        let dueIDs = Set(schedules.map(\.lessonID))
 
-        let materialsDescriptor = FetchDescriptor<StudyMaterial>()
-        let allMaterials = (try? context.fetch(materialsDescriptor)) ?? []
-        return allMaterials.filter { dueIDs.contains($0.id) }
+        let lessonsDescriptor = FetchDescriptor<Lesson>()
+        let allLessons = (try? context.fetch(lessonsDescriptor)) ?? []
+        return allLessons.filter { dueIDs.contains($0.id) }
     }
 
-    static func getOrCreateSchedule(for materialID: UUID, context: ModelContext) -> ReviewSchedule {
+    static func getOrCreateSchedule(for lessonID: UUID, context: ModelContext) -> ReviewSchedule {
         let descriptor = FetchDescriptor<ReviewSchedule>(
-            predicate: #Predicate { $0.materialID == materialID }
+            predicate: #Predicate { $0.lessonID == lessonID }
         )
         if let existing = (try? context.fetch(descriptor))?.first {
             return existing
         }
-        let schedule = ReviewSchedule(materialID: materialID)
+        let schedule = ReviewSchedule(lessonID: lessonID)
         context.insert(schedule)
         try? context.save()
         return schedule

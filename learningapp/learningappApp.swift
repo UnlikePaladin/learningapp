@@ -5,10 +5,14 @@ import SwiftData
 struct learningappApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            StudyMaterial.self,
+            Lesson.self,
+            Source.self,
+            Module.self,
+            StoredChunk.self,
+            StudyCard.self,
+            CustomStudyPlan.self,
             SessionResult.self,
             ReviewSchedule.self,
-            StoredChunk.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

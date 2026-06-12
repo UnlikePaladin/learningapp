@@ -53,7 +53,7 @@ enum DifficultyLevel: String, CaseIterable {
 }
 
 struct QuizConfigView: View {
-    let material: StudyMaterial
+    let title: String
     let onStart: (Int, DifficultyLevel) -> Void
 
     @State private var amount: QuestionAmount = .few
@@ -66,7 +66,7 @@ struct QuizConfigView: View {
                 Image(systemName: "brain.head.profile")
                     .font(.system(size: 44))
                     .foregroundStyle(.tint)
-                Text(material.title.isEmpty ? "Quiz Time" : material.title)
+                Text(title.isEmpty ? "Quiz Time" : title)
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
                     .lineLimit(2)

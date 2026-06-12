@@ -10,10 +10,10 @@ enum InputMode: String, CaseIterable {
 }
 
 struct ContentInputView: View {
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    var onSave: ((StudyMaterial) -> Void)?
+    /// Called with extracted text, source type, and optional file name.
+    var onSubmit: (String, SourceType, String?) -> Void
 
     @State private var mode: InputMode = .paste
     @State private var text = ""
@@ -65,9 +65,7 @@ struct ContentInputView: View {
                         case .pdf: sourceType = .pdf
                         case .paste: sourceType = .paste
                         }
-                        let material = StudyMaterial(rawText: text, sourceType: sourceType)
-                        PersistenceService.save(material, context: modelContext)
-                        onSave?(material)
+                        onSubmit(text, sourceType, pdfFileName)
                         dismiss()
                     }
                 }

@@ -6,8 +6,11 @@ struct ContentView: View {
             Tab("Home", systemImage: "house") {
                 HomeView()
             }
-            Tab("Study", systemImage: "book") {
-                MaterialsListView()
+            Tab("Lessons", systemImage: "book") {
+                LessonsListView()
+            }
+            Tab("Plans", systemImage: "list.clipboard") {
+                CustomPlansListView()
             }
             Tab("Progress", systemImage: "chart.bar") {
                 ProgressDashboardView()
