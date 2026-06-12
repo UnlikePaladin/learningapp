@@ -50,6 +50,14 @@ enum DifficultyLevel: String, CaseIterable {
         case .hard: Color("Red")
         }
     }
+
+    var dotCount: Int {
+        switch self {
+        case .easy: 1
+        case .medium: 2
+        case .hard: 3
+        }
+    }
 }
 
 struct QuizConfigView: View {
@@ -60,82 +68,84 @@ struct QuizConfigView: View {
     @State private var difficulty: DifficultyLevel = .medium
 
     var body: some View {
-        VStack(spacing: 32) {
-            VStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(Color("Darkgreen").opacity(0.12))
-                        .frame(width: 84, height: 84)
-                    Image(systemName: "brain.head.profile")
-                        .font(.system(size: 38))
-                        .foregroundStyle(Color("Darkgreen"))
+        ZStack {
+            Color("Darkgreen").opacity(0.05).ignoresSafeArea()
+
+            VStack(spacing: 28) {
+                VStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 18)
+                            .fill(Color("Darkgreen").opacity(0.12))
+                            .frame(width: 80, height: 80)
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 36))
+                            .foregroundStyle(Color("Darkgreen"))
+                    }
+                    Text(title.isEmpty ? "Quiz Time" : title)
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
                 }
-                Text(title.isEmpty ? "Quiz Time" : title)
-                    .font(.title2.bold())
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-            }
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text("How many questions?")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("How many questions?")
+                        .font(.headline)
 
-                HStack(spacing: 10) {
-                    ForEach(QuestionAmount.allCases, id: \.self) { option in
-                        configButton(
-                            title: option.rawValue,
-                            icon: option.icon,
-                            subtitle: "~\(option.baseCount)",
-                            isSelected: amount == option,
-                            color: Color("Darkgreen")
-                        ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                amount = option
+                    HStack(spacing: 10) {
+                        ForEach(QuestionAmount.allCases, id: \.self) { option in
+                            configButton(
+                                title: option.rawValue,
+                                icon: option.icon,
+                                subtitle: "~\(option.baseCount)",
+                                isSelected: amount == option,
+                                color: Color("Darkgreen")
+                            ) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    amount = option
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Difficulty")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Difficulty")
+                        .font(.headline)
 
-                HStack(spacing: 10) {
-                    ForEach(DifficultyLevel.allCases, id: \.self) { level in
-                        configButton(
-                            title: level.rawValue,
-                            icon: level.icon,
-                            subtitle: nil,
-                            isSelected: difficulty == level,
-                            color: level.color
-                        ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                difficulty = level
+                    HStack(spacing: 10) {
+                        ForEach(DifficultyLevel.allCases, id: \.self) { level in
+                            configButton(
+                                title: level.rawValue,
+                                icon: level.icon,
+                                subtitle: nil,
+                                isSelected: difficulty == level,
+                                color: level.color
+                            ) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    difficulty = level
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Spacer()
+                Spacer()
 
-            Button {
-                onStart(amount.baseCount, difficulty)
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "play.fill")
-                        .font(.title3)
-                    Text("Start Quiz")
-                        .font(.title3.bold())
+                Button {
+                    onStart(amount.baseCount, difficulty)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "play.fill").font(.title3)
+                        Text("Start Quiz").font(.title3.bold())
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 54)
+                    .foregroundStyle(.white)
+                    .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 16))
                 }
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .foregroundStyle(.white)
-                .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 16))
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .padding(24)
         }
-        .padding(24)
     }
 
     private func configButton(
@@ -158,10 +168,7 @@ struct QuizConfigView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 72)
             .background(isSelected ? color : color.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(isSelected ? Color.clear : color.opacity(0.3), lineWidth: 1)
-            )
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(isSelected ? Color.clear : color.opacity(0.3), lineWidth: 1))
             .shadow(color: isSelected ? color.opacity(0.3) : .clear, radius: 6, y: 3)
         }
         .buttonStyle(.plain)
