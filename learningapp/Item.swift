@@ -1,18 +1,2 @@
-//
-//  Item.swift
-//  learningapp
-//
-//  Created by Garza, Ernesto on 11/06/26.
-//
-
-import Foundation
-import SwiftData
-
-@Model
-final class Item {
-    var timestamp: Date
-    
-    init(timestamp: Date) {
-        self.timestamp = timestamp
-    }
-}
+// This file is intentionally left as a placeholder.
+// The StudyMaterial model is defined in Models/StudyModels.swift

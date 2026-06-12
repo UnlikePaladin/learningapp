@@ -1,10 +1,3 @@
-//
-//  learningappApp.swift
-//  learningapp
-//
-//  Created by Garza, Ernesto on 11/06/26.
-//
-
 import SwiftUI
 import SwiftData
 
@@ -12,7 +5,9 @@ import SwiftData
 struct learningappApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            StudyMaterial.self,
+            SessionResult.self,
+            ReviewSchedule.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
