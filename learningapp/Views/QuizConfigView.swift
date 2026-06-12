@@ -15,8 +15,8 @@ enum QuestionAmount: String, CaseIterable {
 
     var icon: String {
         switch self {
-        case .few: "leaf"
-        case .bunch: "flame"
+        case .few: "leaf.fill"
+        case .bunch: "flame.fill"
         case .many: "bolt.fill"
         }
     }
@@ -37,17 +37,17 @@ enum DifficultyLevel: String, CaseIterable {
 
     var icon: String {
         switch self {
-        case .easy: "tortoise"
-        case .medium: "hare"
-        case .hard: "bolt"
+        case .easy: "tortoise.fill"
+        case .medium: "hare.fill"
+        case .hard: "bolt.fill"
         }
     }
 
     var color: Color {
         switch self {
-        case .easy: .green
-        case .medium: .orange
-        case .hard: .red
+        case .easy: Color("Lightgreen")
+        case .medium: Color("Orange")
+        case .hard: Color("Red")
         }
     }
 }
@@ -61,86 +61,109 @@ struct QuizConfigView: View {
 
     var body: some View {
         VStack(spacing: 32) {
-            // Header
-            VStack(spacing: 8) {
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 44))
-                    .foregroundStyle(.tint)
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color("Darkgreen").opacity(0.12))
+                        .frame(width: 84, height: 84)
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 38))
+                        .foregroundStyle(Color("Darkgreen"))
+                }
                 Text(title.isEmpty ? "Quiz Time" : title)
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
             }
 
-            // Question count
             VStack(alignment: .leading, spacing: 12) {
                 Text("How many questions?")
                     .font(.headline)
 
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     ForEach(QuestionAmount.allCases, id: \.self) { option in
                         configButton(
                             title: option.rawValue,
                             icon: option.icon,
                             subtitle: "~\(option.baseCount)",
-                            isSelected: amount == option
-                        ) { amount = option }
+                            isSelected: amount == option,
+                            color: Color("Darkgreen")
+                        ) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                amount = option
+                            }
+                        }
                     }
                 }
             }
 
-            // Difficulty
             VStack(alignment: .leading, spacing: 12) {
                 Text("Difficulty")
                     .font(.headline)
 
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     ForEach(DifficultyLevel.allCases, id: \.self) { level in
                         configButton(
                             title: level.rawValue,
                             icon: level.icon,
                             subtitle: nil,
                             isSelected: difficulty == level,
-                            tint: level.color
-                        ) { difficulty = level }
+                            color: level.color
+                        ) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                difficulty = level
+                            }
+                        }
                     }
                 }
             }
 
             Spacer()
 
-            // Start button
             Button {
                 onStart(amount.baseCount, difficulty)
             } label: {
-                Label("Start Quiz", systemImage: "play.fill")
-                    .font(.title3.bold())
-                    .frame(maxWidth: .infinity, minHeight: 56)
+                HStack(spacing: 10) {
+                    Image(systemName: "play.fill")
+                        .font(.title3)
+                    Text("Start Quiz")
+                        .font(.title3.bold())
+                }
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .foregroundStyle(.white)
+                .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 16))
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.plain)
         }
         .padding(24)
     }
 
-    private func configButton(title: String, icon: String, subtitle: String?, isSelected: Bool, tint: Color = .accentColor, action: @escaping () -> Void) -> some View {
+    private func configButton(
+        title: String, icon: String, subtitle: String?,
+        isSelected: Bool, color: Color, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.title2)
+                    .foregroundStyle(isSelected ? .white : color)
                 Text(title)
                     .font(.subheadline.bold())
+                    .foregroundStyle(isSelected ? .white : .primary)
                 if let subtitle {
                     Text(subtitle)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 70)
-            .background(isSelected ? tint.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? tint : .secondary.opacity(0.3), lineWidth: isSelected ? 2 : 1))
+            .frame(maxWidth: .infinity, minHeight: 72)
+            .background(isSelected ? color : color.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isSelected ? Color.clear : color.opacity(0.3), lineWidth: 1)
+            )
+            .shadow(color: isSelected ? color.opacity(0.3) : .clear, radius: 6, y: 3)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(isSelected ? tint : .primary)
     }
 }

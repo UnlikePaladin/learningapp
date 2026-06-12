@@ -38,7 +38,7 @@ struct ProgressDashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     HStack(spacing: 14) {
                         statCard(icon: "flame.fill", color: Color("Orange"), value: "\(streak)", label: "Day Streak")
                         statCard(icon: "star.fill", color: Color("Lightgreen"), value: "\(xp)", label: "XP Earned")
@@ -49,7 +49,7 @@ struct ProgressDashboardView: View {
                         statCard(icon: "questionmark.circle.fill", color: Color("Red"), value: "\(totalQuestions)", label: "Questions")
                     }
 
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 14) {
                         Text("Last 7 Days")
                             .font(.headline)
 
@@ -59,7 +59,7 @@ struct ProgressDashboardView: View {
                                 y: .value("Questions", item.count)
                             )
                             .foregroundStyle(Color("Lightgreen").gradient)
-                            .cornerRadius(6)
+                            .cornerRadius(8)
                         }
                         .chartXAxis {
                             AxisMarks(values: .stride(by: .day)) { _ in
@@ -69,8 +69,8 @@ struct ProgressDashboardView: View {
                         }
                         .frame(height: 160)
                     }
-                    .padding()
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .padding(18)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
 
                     if sessions.isEmpty {
                         ContentUnavailableView(
@@ -88,27 +88,19 @@ struct ProgressDashboardView: View {
 
     private func statCard(icon: String, color: Color, value: String, label: String) -> some View {
         VStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.15))
-                    .frame(width: 46, height: 46)
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundStyle(color)
-            }
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(.white.opacity(0.9))
             Text(value)
                 .font(.title.bold())
+                .foregroundStyle(.white)
             Text(label)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.8))
         }
         .frame(maxWidth: .infinity, minHeight: 110)
-        .padding(.vertical, 6)
-        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(color.opacity(0.2), lineWidth: 1)
-        )
+        .padding(.vertical, 8)
+        .background(color, in: RoundedRectangle(cornerRadius: 18))
     }
 }
 

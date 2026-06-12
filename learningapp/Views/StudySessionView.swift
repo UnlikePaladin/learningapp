@@ -30,16 +30,29 @@ struct StudySessionView: View {
                 case .loading:
                     loadingView
                 case .quizzing(let questions):
-                    QuizCardView(questions: questions, aiService: FoundationModelService(), difficulty: chosenDifficulty) { results in
+                    QuizCardView(
+                        questions: questions,
+                        aiService: FoundationModelService(),
+                        difficulty: chosenDifficulty
+                    ) { results in
                         let correct = results.filter { $0 }.count
                         let total = results.count
                         saveSession(correct: correct, total: total)
-                        withAnimation(.easeInOut) {
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                             state = .complete(correct: correct, total: total)
                         }
                     }
                 case .complete(let correct, let total):
-                    completeView(correct: correct, total: total)
+                    SessionCompleteView(
+                        correct: correct,
+                        total: total,
+                        onDone: { dismiss() },
+                        onStudyAgain: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                state = .config
+                            }
+                        }
+                    )
                 }
             }
             .navigationTitle("Study Session")
@@ -49,7 +62,10 @@ struct StudySessionView: View {
                     Button("Close") { dismiss() }
                 }
             }
-            .alert("Error", isPresented: .init(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert("Error", isPresented: .init(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
                 Button("OK") {}
             } message: {
                 Text(errorMessage ?? "")
@@ -58,11 +74,20 @@ struct StudySessionView: View {
     }
 
     private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView(value: coordinator.quizProgress)
-                .frame(width: 220)
-            Text(coordinator.quizStatus.isEmpty ? "Generating questions…" : coordinator.quizStatus)
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(Color("Lightgreen").opacity(0.12))
+                    .frame(width: 90, height: 90)
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 38))
+                    .foregroundStyle(Color("Darkgreen"))
+                    .symbolEffect(.pulse)
+            }
+            Text("Generating questions...")
                 .font(.headline)
+            Text("This takes a moment...")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -95,12 +120,13 @@ struct StudySessionView: View {
             }
         }
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func startQuiz(count: Int, difficulty: DifficultyLevel) {
         chosenDifficulty = difficulty
         sessionStart = Date()
-        withAnimation { state = .loading }
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { state = .loading }
         Task {
             let ragScope: RAGService.Scope
             let topicHint: String
@@ -128,7 +154,9 @@ struct StudySessionView: View {
                 errorMessage = "Could not generate questions. Try adding more material."
                 withAnimation { state = .config }
             } else {
-                withAnimation { state = .quizzing(questions) }
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    state = .quizzing(questions)
+                }
             }
         }
     }
@@ -146,7 +174,6 @@ struct StudySessionView: View {
             moduleID = module.id
         case .plan(let plan):
             planID = plan.id
-            // Use first lesson in plan for the lessonID — we still need one for grouping
             lessonID = plan.lessonIDs.first ?? UUID()
         }
 
@@ -159,5 +186,100 @@ struct StudySessionView: View {
             duration: Date().timeIntervalSince(sessionStart)
         )
         coordinator.completeSession(result: session, context: modelContext)
+    }
+}
+
+// MARK: - Complete Screen
+
+private struct SessionCompleteView: View {
+    let correct: Int
+    let total: Int
+    let onDone: () -> Void
+    let onStudyAgain: () -> Void
+
+    @State private var ringProgress: Double = 0
+
+    private var accuracy: Double { total > 0 ? Double(correct) / Double(total) : 0 }
+    private var isGreat: Bool { accuracy >= 0.8 }
+    private var xpEarned: Int { correct * 10 + (total - correct) * 5 }
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .stroke(Color.secondary.opacity(0.12), lineWidth: 14)
+                    .frame(width: 150, height: 150)
+                Circle()
+                    .trim(from: 0, to: ringProgress)
+                    .stroke(
+                        isGreat ? Color("Lightgreen") : Color("Orange"),
+                        style: StrokeStyle(lineWidth: 14, lineCap: .round)
+                    )
+                    .frame(width: 150, height: 150)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.spring(response: 0.9, dampingFraction: 0.7), value: ringProgress)
+
+                VStack(spacing: 2) {
+                    Text("\(correct)/\(total)")
+                        .font(.title.bold())
+                    Text("correct")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    ringProgress = accuracy
+                }
+            }
+
+            VStack(spacing: 8) {
+                Text(isGreat ? "Excellent work!" : "Keep going!")
+                    .font(.largeTitle.bold())
+                Text(isGreat ? "You're mastering this material!" : "Every attempt builds your knowledge.")
+                    .font(.body)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "star.fill")
+                    .foregroundStyle(Color("Yellow"))
+                Text("+\(xpEarned) XP earned")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(Color("Darkgreen"))
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+            .background(Color("Lightgreen").opacity(0.15), in: Capsule())
+
+            Spacer()
+
+            VStack(spacing: 10) {
+                Button(action: onDone) {
+                    Text("Done")
+                        .font(.title3.bold())
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .foregroundStyle(.white)
+                        .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onStudyAgain) {
+                    Text("Study Again")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, minHeight: 46)
+                        .foregroundStyle(Color("Darkgreen"))
+                        .background(Color("Darkgreen").opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+        .padding()
     }
 }
