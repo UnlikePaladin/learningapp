@@ -7,6 +7,8 @@ struct MaterialsListView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showingInput = false
     @State private var appendingTo: StudyMaterial?
+    @State private var renamingMaterial: StudyMaterial?
+    @State private var renameText = ""
     @State private var isIngesting = false
     @State private var coordinator = StudyCoordinator()
 
@@ -28,6 +30,13 @@ struct MaterialsListView: View {
                                     appendingTo = material
                                 }
                                 .tint(.blue)
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button("Rename", systemImage: "pencil") {
+                                    renameText = material.title
+                                    renamingMaterial = material
+                                }
+                                .tint(.orange)
                             }
                         }
                         .onDelete(perform: deleteMaterials)
@@ -56,11 +65,28 @@ struct MaterialsListView: View {
                     }
                 }
             }
+            .alert("Rename Material", isPresented: .init(
+                get: { renamingMaterial != nil },
+                set: { if !$0 { renamingMaterial = nil } }
+            )) {
+                TextField("Title", text: $renameText)
+                Button("Save") {
+                    if let material = renamingMaterial, !renameText.trimmingCharacters(in: .whitespaces).isEmpty {
+                        material.title = renameText
+                        try? modelContext.save()
+                    }
+                    renamingMaterial = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    renamingMaterial = nil
+                }
+            }
             .overlay {
                 if isIngesting {
                     VStack(spacing: 12) {
-                        ProgressView()
-                        Text("Processing material...")
+                        ProgressView(value: coordinator.ingestionProgress)
+                            .frame(width: 200)
+                        Text(coordinator.ingestionStatus.isEmpty ? "Processing material..." : coordinator.ingestionStatus)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

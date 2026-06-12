@@ -21,6 +21,9 @@ struct ContentInputView: View {
     @State private var showingFileImporter = false
     @State private var pdfFileName: String?
     @State private var pdfErrorMessage: String?
+    @State private var isExtractingPDF = false
+    @State private var pdfProgress: Double = 0
+    @State private var pdfStatus: String = ""
 
     var body: some View {
         NavigationStack {
@@ -85,14 +88,40 @@ struct ContentInputView: View {
             .fileImporter(isPresented: $showingFileImporter, allowedContentTypes: [.pdf]) { result in
                 switch result {
                 case .success(let url):
-                    if let extracted = PDFExtractor.extractText(from: url) {
-                        text = extracted
-                        pdfFileName = url.lastPathComponent
-                    } else {
-                        pdfErrorMessage = "Could not extract text from this PDF. It may be image-only or password-protected."
+                    Task {
+                        isExtractingPDF = true
+                        pdfProgress = 0
+                        pdfStatus = "Opening PDF..."
+                        let extracted = await PDFExtractor.extractText(from: url) { progress, status in
+                            Task { @MainActor in
+                                pdfProgress = progress
+                                pdfStatus = status
+                            }
+                        }
+                        isExtractingPDF = false
+                        if let extracted {
+                            text = extracted
+                            pdfFileName = url.lastPathComponent
+                        } else {
+                            pdfErrorMessage = "Could not extract text from this PDF, even with OCR. The file may be corrupted or empty."
+                        }
                     }
                 case .failure(let error):
                     pdfErrorMessage = error.localizedDescription
+                }
+            }
+            .overlay {
+                if isExtractingPDF {
+                    VStack(spacing: 12) {
+                        ProgressView(value: pdfProgress)
+                            .frame(width: 220)
+                        Text(pdfStatus.isEmpty ? "Extracting PDF..." : pdfStatus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(24)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
             .onChange(of: mode) { _, newValue in

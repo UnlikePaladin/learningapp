@@ -86,8 +86,9 @@ struct HomeView: View {
             .overlay {
                 if isIngesting {
                     VStack(spacing: 12) {
-                        ProgressView()
-                        Text("Processing material...")
+                        ProgressView(value: coordinator.ingestionProgress)
+                            .frame(width: 200)
+                        Text(coordinator.ingestionStatus.isEmpty ? "Processing material..." : coordinator.ingestionStatus)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

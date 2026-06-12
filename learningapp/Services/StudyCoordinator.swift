@@ -8,40 +8,77 @@ final class StudyCoordinator {
     var isProcessing = false
     var currentPlan: StudyPlan?
 
+    // Ingestion progress (0.0 to 1.0)
+    var ingestionProgress: Double = 0
+    var ingestionStatus: String = ""
+
     private let modelService = FoundationModelService()
     private let ragService = RAGService()
     private let embeddingService = EmbeddingService()
 
     // MARK: - Ingestion (called when user adds new material)
 
-    /// Chunk text locally, embed each chunk, store in SwiftData, generate title.
+    /// Chunk text locally, AI-filter for relevance, embed each chunk, store in SwiftData, generate title.
     func ingestMaterial(_ material: StudyMaterial, context: ModelContext) async {
         isProcessing = true
-        defer { isProcessing = false }
+        ingestionProgress = 0
+        defer {
+            isProcessing = false
+            ingestionProgress = 0
+            ingestionStatus = ""
+        }
 
-        // 1. Local chunking — split by paragraphs, no AI needed
+        // 1. Local chunking
+        ingestionStatus = "Splitting text..."
         let rawChunks = chunkLocally(material.rawText)
+        guard !rawChunks.isEmpty else { return }
 
-        // 2. Embed and store each chunk
-        for (i, text) in rawChunks.enumerated() {
+        // 2. AI filter: classify each chunk as content or boilerplate
+        ingestionStatus = "Filtering relevant content..."
+        var relevantChunks: [String] = []
+        for (i, chunk) in rawChunks.enumerated() {
+            ingestionProgress = Double(i) / Double(rawChunks.count) * 0.7 // 70% of progress
+            // Skip very short chunks without classification (likely junk)
+            if chunk.count < 30 { continue }
+            if await modelService.isLessonContent(chunk) {
+                relevantChunks.append(chunk)
+            }
+        }
+
+        // If filtering nuked everything, fall back to raw chunks
+        if relevantChunks.isEmpty { relevantChunks = rawChunks }
+
+        // 3. Embed and store each relevant chunk (also capture embeddings for centroid analysis)
+        ingestionStatus = "Embedding chunks..."
+        var embeddedChunks: [(text: String, vector: [Double])] = []
+        for (i, text) in relevantChunks.enumerated() {
+            ingestionProgress = 0.7 + Double(i) / Double(relevantChunks.count) * 0.25
             guard let vector = embeddingService.embed(text) else { continue }
             let stored = StoredChunk(materialID: material.id, text: text, order: i, embedding: vector)
             context.insert(stored)
+            embeddedChunks.append((text, vector))
         }
 
-        // 3. Generate a title from the first chunk
+        // 4. Generate a title using RAG: centroid retrieval + lemmatized key terms
+        ingestionStatus = "Generating title..."
+        ingestionProgress = 0.95
         if material.title.isEmpty {
-            let titleText = rawChunks.first ?? String(material.rawText.prefix(200))
-            if let title = try? await modelService.generateTitle(from: titleText), !title.isEmpty {
+            let representative = ragService.mostRepresentativeChunks(from: embeddedChunks, topK: 3)
+                .joined(separator: "\n\n")
+            let keyTerms = TextAnalysis.extractKeyTerms(material.rawText, topN: 8)
+            if let title = try? await modelService.generateTitle(
+                representativeContent: representative.isEmpty ? material.rawText : representative,
+                keyTerms: keyTerms
+            ), !title.isEmpty {
                 material.title = title
             } else {
-                // Fallback: use first line or first 50 chars as title
                 let firstLine = material.rawText.components(separatedBy: .newlines)
                     .first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? ""
                 material.title = String(firstLine.prefix(50))
             }
         }
 
+        ingestionProgress = 1.0
         try? context.save()
     }
 
@@ -95,24 +132,41 @@ final class StudyCoordinator {
     /// Append new text to an existing material, re-chunk and embed only the new content.
     func appendContent(_ newText: String, to material: StudyMaterial, context: ModelContext) async {
         isProcessing = true
-        defer { isProcessing = false }
+        ingestionProgress = 0
+        defer {
+            isProcessing = false
+            ingestionProgress = 0
+            ingestionStatus = ""
+        }
 
-        // Append to raw text
         material.rawText += "\n\n" + newText
 
-        // Get current max order for this material's chunks
         let descriptor = FetchDescriptor<StoredChunk>()
         let allChunks = (try? context.fetch(descriptor)) ?? []
         let maxOrder = allChunks.filter { $0.materialID == material.id }.map(\.order).max() ?? -1
 
-        // Chunk and embed only the new text
+        // Chunk and AI-filter the new text
+        ingestionStatus = "Filtering relevant content..."
         let newChunks = chunkLocally(newText)
-        for (i, text) in newChunks.enumerated() {
+        var relevantChunks: [String] = []
+        for (i, chunk) in newChunks.enumerated() {
+            ingestionProgress = Double(i) / Double(max(1, newChunks.count)) * 0.7
+            if chunk.count < 30 { continue }
+            if await modelService.isLessonContent(chunk) {
+                relevantChunks.append(chunk)
+            }
+        }
+        if relevantChunks.isEmpty { relevantChunks = newChunks }
+
+        ingestionStatus = "Embedding chunks..."
+        for (i, text) in relevantChunks.enumerated() {
+            ingestionProgress = 0.7 + Double(i) / Double(relevantChunks.count) * 0.3
             guard let vector = embeddingService.embed(text) else { continue }
             let stored = StoredChunk(materialID: material.id, text: text, order: maxOrder + 1 + i, embedding: vector)
             context.insert(stored)
         }
 
+        ingestionProgress = 1.0
         try? context.save()
     }
 

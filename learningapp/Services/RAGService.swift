@@ -50,4 +50,26 @@ final class RAGService {
             "[\(i + 1)] \(chunk.text)"
         }.joined(separator: "\n\n")
     }
+
+    /// Find the chunks closest to the centroid of all chunk embeddings.
+    /// These are the most semantically "central" / representative chunks of the material.
+    func mostRepresentativeChunks(from embeddings: [(text: String, vector: [Double])], topK: Int = 3) -> [String] {
+        guard !embeddings.isEmpty else { return [] }
+        if embeddings.count <= topK { return embeddings.map(\.text) }
+
+        // Compute centroid
+        let dim = embeddings[0].vector.count
+        var centroid = [Double](repeating: 0, count: dim)
+        for entry in embeddings {
+            for i in 0..<dim { centroid[i] += entry.vector[i] }
+        }
+        for i in 0..<dim { centroid[i] /= Double(embeddings.count) }
+
+        // Sort by similarity to centroid
+        return embeddings
+            .map { (text: $0.text, score: CosineSimilarity.calculate(centroid, $0.vector)) }
+            .sorted { $0.score > $1.score }
+            .prefix(topK)
+            .map(\.text)
+    }
 }

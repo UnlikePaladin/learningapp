@@ -3,26 +3,44 @@ import PDFKit
 
 enum PDFExtractor {
     /// Extract and clean text from a PDF file at the given URL.
-    static func extractText(from url: URL) -> String? {
+    /// Always runs Vision OCR on every page so handwritten annotations over digital PDFs are captured.
+    static func extractText(
+        from url: URL,
+        progress: ((Double, String) -> Void)? = nil
+    ) async -> String? {
         let didStartAccessing = url.startAccessingSecurityScopedResource()
         defer { if didStartAccessing { url.stopAccessingSecurityScopedResource() } }
 
         guard let document = PDFDocument(url: url) else { return nil }
+        let totalPages = document.pageCount
 
         var pageTexts: [String] = []
-        for i in 0..<document.pageCount {
-            if let page = document.page(at: i), let pageText = page.string {
-                pageTexts.append(pageText)
+        for i in 0..<totalPages {
+            guard let page = document.page(at: i) else { continue }
+            progress?(Double(i) / Double(totalPages), "Recognizing page \(i + 1) of \(totalPages)...")
+
+            // Always OCR — this captures both digital text and handwritten annotations
+            var text = ""
+            if let cgImage = OCRService.renderPage(page),
+               let ocrText = try? await OCRService.recognizeText(in: cgImage) {
+                text = ocrText
             }
+
+            // Fall back to page.string only if OCR returned nothing
+            if text.isEmpty {
+                text = page.string ?? ""
+            }
+
+            pageTexts.append(text)
         }
 
+        progress?(1.0, "Cleaning text...")
         let cleaned = clean(pageTexts: pageTexts)
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : cleaned
     }
 
     /// Clean PDF text by removing branding, headers, footers, URLs, and other noise.
     private static func clean(pageTexts: [String]) -> String {
-        // Find lines that repeat across multiple pages (headers/footers)
         var lineCountAcrossPages: [String: Int] = [:]
         for pageText in pageTexts {
             let uniqueLines = Set(pageText.components(separatedBy: .newlines)
@@ -32,7 +50,6 @@ enum PDFExtractor {
             }
         }
         let totalPages = pageTexts.count
-        // Lines appearing on >50% of pages are likely headers/footers
         let repeatThreshold = max(2, totalPages / 2)
         let repeatedLines = Set(lineCountAcrossPages.filter { $0.value >= repeatThreshold }.keys)
 
@@ -46,7 +63,6 @@ enum PDFExtractor {
             }
         }
 
-        // Collapse runs of empty lines
         var result: [String] = []
         var lastWasEmpty = false
         for line in allLines {
@@ -60,32 +76,26 @@ enum PDFExtractor {
     }
 
     private static func shouldKeep(line: String, repeated: Set<String>) -> Bool {
-        if line.isEmpty { return true } // keep paragraph breaks for now (collapsed later)
+        if line.isEmpty { return true }
         if repeated.contains(line) { return false }
 
         let lower = line.lowercased()
 
-        // Copyright / legal
         if line.contains("©") || line.contains("™") || line.contains("®") { return false }
         if lower.contains("copyright") || lower.contains("all rights reserved") { return false }
         if lower.hasPrefix("registered") || lower.hasPrefix("trademark") { return false }
 
-        // URLs and emails
         if line.range(of: #"https?://"#, options: .regularExpression) != nil { return false }
         if line.range(of: #"www\.[^\s]+"#, options: .regularExpression) != nil { return false }
         if line.range(of: #"[\w\.-]+@[\w\.-]+"#, options: .regularExpression) != nil { return false }
 
-        // Pure numbers (page numbers)
         if line.range(of: #"^\d+$"#, options: .regularExpression) != nil { return false }
         if line.range(of: #"^Page\s+\d+"#, options: [.regularExpression, .caseInsensitive]) != nil { return false }
 
-        // Image-related captions and instructions
         if lower.hasPrefix("figure ") || lower.hasPrefix("fig.") { return false }
         if lower.contains("logo") && line.count < 80 { return false }
         if lower.hasPrefix("image:") || lower.hasPrefix("photo:") { return false }
 
-        // Very short lines that aren't sentences (often headers, captions, branding)
-        // Keep them if they look like a heading (e.g., "The Water Cycle")
         if line.count < 4 { return false }
 
         return true

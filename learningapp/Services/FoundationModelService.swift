@@ -8,6 +8,12 @@ struct TitleResult {
 }
 
 @Generable
+struct ContentRelevance {
+    @Guide(description: "true if the text is meaningful educational lesson content (explanations, definitions, examples, concepts). false if it is boilerplate like branding, copyright notices, page headers/footers, image captions, navigation, table of contents, or legal disclaimers.")
+    var isLessonContent: Bool
+}
+
+@Generable
 struct GeneratedQuestion {
     @Guide(description: "A clear, concise question testing understanding of one concept")
     var prompt: String
@@ -55,20 +61,119 @@ struct StudyPlanResult {
 final class FoundationModelService {
     private let session = LanguageModelSession()
 
+    // MARK: - Content Filtering
+
+    /// Classify whether a chunk is meaningful educational content vs boilerplate.
+    /// Returns true on failure (fail-open) to avoid losing legitimate content.
+    func isLessonContent(_ text: String) async -> Bool {
+        let prompt = """
+        Determine if the following text is meaningful educational lesson content.
+
+        Answer FALSE for:
+        - Branding, company names, logos
+        - Copyright notices, legal disclaimers
+        - Page numbers, headers, footers
+        - Image captions, "Figure X" labels
+        - Navigation, table of contents
+        - URLs, contact info
+
+        Answer TRUE for:
+        - Explanations of concepts
+        - Definitions
+        - Examples
+        - Lesson narrative
+        - Educational facts
+
+        Text:
+        \(text)
+        """
+        do {
+            let response = try await session.respond(to: prompt, generating: ContentRelevance.self)
+            return response.content.isLessonContent
+        } catch {
+            // Fail open — if classification fails (e.g., safety filter), keep the chunk
+            return true
+        }
+    }
+
     // MARK: - Title Generation
 
-    /// Generate a short title from the first ~200 chars of material. Cheap call.
-    func generateTitle(from text: String) async throws -> String {
-        let snippet = String(text.prefix(300))
-        let prompt = """
-        You are an educational tutor. Generate a short descriptive title (3-8 words) \
-        for this study material. Only output the title, nothing else.
+    /// Generate a topic title using the most representative content and key terms.
+    func generateTitle(representativeContent: String, keyTerms: [String]) async throws -> String {
+        let termsLine = keyTerms.isEmpty ? "" : "Most frequent topic words: \(keyTerms.joined(separator: ", "))\n\n"
 
-        Material excerpt:
-        \(snippet)
+        let prompt = """
+        You are creating a short topic title for a lesson. Based on the most representative \
+        content below and the key terms, output a short noun phrase naming the main topic.
+
+        Rules:
+        - 2 to 6 words
+        - Title Case (e.g., "The Water Cycle", "Cell Biology")
+        - Just the subject — no colons, no "Key Points", no "Summary", no "Lesson on..."
+        - Do NOT copy section headers
+        - Do NOT include quotes or trailing punctuation
+
+        Examples of good titles:
+        - "The Water Cycle"
+        - "Mitochondria and Chloroplasts"
+        - "Photosynthesis Basics"
+        - "Newton's Laws of Motion"
+
+        \(termsLine)Most representative content:
+        \(representativeContent)
         """
         let response = try await session.respond(to: prompt, generating: TitleResult.self)
-        return response.content.title
+        return sanitizeTitle(response.content.title)
+    }
+
+    /// Convenience overload for callers without RAG embeddings.
+    func generateTitle(from text: String) async throws -> String {
+        let sample = sampleForTitle(text)
+        let keyTerms = TextAnalysis.extractKeyTerms(text)
+        return try await generateTitle(representativeContent: sample, keyTerms: keyTerms)
+    }
+
+    /// Sample text from across the material to give the title generator a representative view.
+    private func sampleForTitle(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lines = trimmed.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        let skipPrefixes = ["key points", "introduction", "summary", "overview", "contents", "table of"]
+        let filtered = lines.drop { line in
+            let lower = line.lowercased()
+            return skipPrefixes.contains { lower.hasPrefix($0) } || line.count < 10
+        }
+
+        let body = filtered.prefix(8).joined(separator: " ")
+        return String(body.prefix(600))
+    }
+
+    /// Clean up common bad patterns in generated titles.
+    private func sanitizeTitle(_ raw: String) -> String {
+        var title = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip surrounding quotes
+        title = title.trimmingCharacters(in: CharacterSet(charactersIn: "\"'`"))
+        // Remove trailing punctuation
+        title = title.trimmingCharacters(in: CharacterSet(charactersIn: ".:,;"))
+        // Strip common bad prefixes
+        let badPrefixes = ["lesson on ", "lesson: ", "title: ", "topic: ", "subject: ", "key points", "summary of "]
+        for prefix in badPrefixes {
+            if title.lowercased().hasPrefix(prefix) {
+                title = String(title.dropFirst(prefix.count))
+            }
+        }
+        // Length sanity check — if it's too long, truncate at word boundary
+        if title.count > 60 {
+            let truncated = String(title.prefix(60))
+            if let lastSpace = truncated.lastIndex(of: " ") {
+                title = String(truncated[..<lastSpace])
+            } else {
+                title = truncated
+            }
+        }
+        return title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Question Generation (RAG-aware)
