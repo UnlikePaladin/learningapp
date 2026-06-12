@@ -38,6 +38,8 @@ struct LessonsListView: View {
                         .onDelete(perform: deleteLessons)
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color("Darkgreen").opacity(0.05).ignoresSafeArea())
                 }
             }
             .navigationTitle("Lessons")

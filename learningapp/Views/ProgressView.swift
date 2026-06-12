@@ -38,7 +38,7 @@ struct ProgressDashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 14) {
                     HStack(spacing: 14) {
                         statCard(icon: "flame.fill", color: Color("Orange"), value: "\(streak)", label: "Day Streak")
                         statCard(icon: "star.fill", color: Color("Lightgreen"), value: "\(xp)", label: "XP Earned")
@@ -82,6 +82,7 @@ struct ProgressDashboardView: View {
                 }
                 .padding()
             }
+            .background(Color("Darkgreen").opacity(0.05).ignoresSafeArea())
             .navigationTitle("Progress")
         }
     }

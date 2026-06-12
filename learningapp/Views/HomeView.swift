@@ -18,7 +18,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 20) {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Ready to learn?")
@@ -90,6 +90,7 @@ struct HomeView: View {
                 }
                 .padding()
             }
+            .background(Color("Darkgreen").opacity(0.05).ignoresSafeArea())
             .navigationTitle("Home")
             .sheet(isPresented: $showingInput) {
                 ContentInputView { rawText, sourceType, fileName in
