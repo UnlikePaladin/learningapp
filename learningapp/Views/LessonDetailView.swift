@@ -26,15 +26,22 @@ struct LessonDetailView: View {
                 Button {
                     startingQuiz = QuizScope(kind: .lesson(lesson), title: lesson.title)
                 } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "play.fill")
-                            .font(.title3)
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(.white.opacity(0.2))
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "play.fill")
+                                .font(.title3)
+                                .foregroundStyle(.white)
+                        }
                         Text("Quiz This Lesson")
                             .font(.title3.bold())
+                            .foregroundStyle(.white)
+                        Spacer()
                     }
-                    .frame(maxWidth: .infinity, minHeight: 56)
-                    .foregroundStyle(.white)
-                    .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 16))
+                    .padding(18)
+                    .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 18))
                 }
                 .buttonStyle(.plain)
 
@@ -132,12 +139,17 @@ struct LessonDetailView: View {
         NavigationLink {
             ModuleContentView(lesson: lesson, module: module)
         } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                Rectangle()
-                    .fill(Color("Darkgreen"))
-                    .frame(height: 3)
+            HStack(spacing: 0) {
+                VStack {
+                    Image(systemName: "book.pages.fill")
+                        .font(.title3)
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 58)
+                .frame(maxHeight: .infinity)
+                .background(Color("Darkgreen"))
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 5) {
                     HStack {
                         Text(module.title)
                             .font(.subheadline.bold())
@@ -151,27 +163,28 @@ struct LessonDetailView: View {
                         Text(module.summary)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .lineLimit(3)
+                            .lineLimit(2)
                     }
                 }
+                .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
             }
+            .frame(minHeight: 72)
             .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
     }
 
     private func sourceRow(_ source: Source) -> some View {
-        HStack {
+        HStack(spacing: 12) {
             ZStack {
-                Circle()
-                    .fill(Color("Darkgreen").opacity(0.12))
-                    .frame(width: 32, height: 32)
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color("Lightgreen").opacity(0.15))
+                    .frame(width: 36, height: 36)
                 Image(systemName: iconForSource(source.sourceType))
                     .font(.caption)
-                    .foregroundStyle(Color("Darkgreen"))
+                    .foregroundStyle(Color("Lightgreen"))
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(source.fileName ?? sourceLabel(source.sourceType))

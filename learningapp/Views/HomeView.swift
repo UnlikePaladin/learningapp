@@ -9,16 +9,16 @@ struct HomeView: View {
     @State private var showingInput = false
     @State private var coordinator = StudyCoordinator()
 
-    private var recentLessons: [Lesson] { Array(lessons.prefix(3)) }
+    private var recentLessons: [Lesson] { Array(lessons.prefix(4)) }
 
-    private let cardColors: [Color] = [
-        Color("Orange"), Color("Lightgreen"), Color("Red"), Color("Yellow"), Color("Darkgreen")
+    private let tileColors: [Color] = [
+        Color("Orange"), Color("Lightgreen"), Color("Red"), Color("Darkgreen")
     ]
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 28) {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Ready to learn?")
@@ -35,21 +35,36 @@ struct HomeView: View {
                     Button {
                         showingInput = true
                     } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                            Text("Add New Lesson")
-                                .font(.title3.bold())
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(.white.opacity(0.2))
+                                    .frame(width: 48, height: 48)
+                                Image(systemName: "plus")
+                                    .font(.title2.bold())
+                                    .foregroundStyle(.white)
+                            }
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Add New Lesson")
+                                    .font(.title3.bold())
+                                    .foregroundStyle(.white)
+                                Text("Paste text, scan, or import PDF")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.75))
+                            }
+                            Spacer()
+                            Image(systemName: "arrow.right")
+                                .foregroundStyle(.white.opacity(0.7))
                         }
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                        .foregroundStyle(.white)
-                        .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 16))
+                        .padding(18)
+                        .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 20))
                     }
                     .buttonStyle(.plain)
 
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 14) {
                         Text("Recent Lessons")
                             .font(.headline)
+
                         if recentLessons.isEmpty {
                             ContentUnavailableView(
                                 "No lessons yet",
@@ -57,13 +72,18 @@ struct HomeView: View {
                                 description: Text("Tap above to create your first lesson.")
                             )
                         } else {
-                            ForEach(Array(recentLessons.enumerated()), id: \.element.id) { index, lesson in
-                                NavigationLink {
-                                    LessonDetailView(lesson: lesson)
-                                } label: {
-                                    lessonCard(lesson, accent: cardColors[index % cardColors.count])
+                            LazyVGrid(
+                                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                                spacing: 14
+                            ) {
+                                ForEach(Array(recentLessons.enumerated()), id: \.element.id) { index, lesson in
+                                    NavigationLink {
+                                        LessonDetailView(lesson: lesson)
+                                    } label: {
+                                        lessonTile(lesson, color: tileColors[index % tileColors.count])
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -99,36 +119,28 @@ struct HomeView: View {
         }
     }
 
-    private func lessonCard(_ lesson: Lesson, accent: Color) -> some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(accent)
-                .frame(width: 4)
+    private func lessonTile(_ lesson: Lesson, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: "book.fill")
+                .font(.title2)
+                .foregroundStyle(.white.opacity(0.85))
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(lesson.title.isEmpty ? "Untitled" : lesson.title)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text(lesson.dateCreated, format: .relative(presentation: .named))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.tertiary)
-                    .font(.caption)
-            }
-            .padding(.vertical, 14)
-            .padding(.horizontal, 12)
+            Spacer()
+
+            Text(lesson.title.isEmpty ? "Untitled" : lesson.title)
+                .font(.subheadline.bold())
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+
+            Text(lesson.dateCreated, format: .relative(presentation: .named))
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+                .padding(.top, 3)
         }
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(accent.opacity(0.2), lineWidth: 1)
-        )
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+        .background(color, in: RoundedRectangle(cornerRadius: 20))
     }
 }
 

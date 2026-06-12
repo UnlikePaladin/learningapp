@@ -17,6 +17,10 @@ struct ModuleContentView: View {
 
     private let modelService = FoundationModelService()
 
+    private let headerColors: [Color] = [
+        Color("Darkgreen"), Color("Orange"), Color("Lightgreen"), Color("Red")
+    ]
+
     private var moduleCards: [StudyCard] {
         allCards
             .filter { $0.moduleID == module.id }
@@ -35,22 +39,15 @@ struct ModuleContentView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Header
-            VStack(alignment: .leading, spacing: 4) {
-                Text(module.title)
-                    .font(.title.bold())
+            if !module.summary.isEmpty {
+                Text(module.summary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                if !module.summary.isEmpty {
-                    Text(module.summary)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                    .padding(.horizontal)
+                    .padding(.top, 4)
             }
-            .padding(.horizontal)
-            .padding(.top, 8)
 
-            // Body
             if isGenerating {
                 generatingView
             } else if !moduleCards.isEmpty {
@@ -61,15 +58,20 @@ struct ModuleContentView: View {
                 emptyView
             }
 
-            // Quiz button
             Button {
                 startingQuiz = QuizScope(kind: .module(module, lessonID: lesson.id), title: module.title)
             } label: {
-                Label("Quiz This Module", systemImage: "play.fill")
-                    .font(.title3.bold())
-                    .frame(maxWidth: .infinity, minHeight: 56)
+                HStack(spacing: 10) {
+                    Image(systemName: "play.fill")
+                        .font(.title3)
+                    Text("Quiz This Module")
+                        .font(.title3.bold())
+                }
+                .frame(maxWidth: .infinity, minHeight: 54)
+                .foregroundStyle(.white)
+                .background(Color("Orange"), in: RoundedRectangle(cornerRadius: 16))
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
@@ -77,9 +79,7 @@ struct ModuleContentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !fullContent.isEmpty {
-                Button {
-                    showOriginal = true
-                } label: {
+                Button { showOriginal = true } label: {
                     Image(systemName: "doc.text")
                 }
             }
@@ -110,11 +110,20 @@ struct ModuleContentView: View {
     // MARK: - Subviews
 
     private var generatingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.5)
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(Color("Lightgreen").opacity(0.12))
+                    .frame(width: 90, height: 90)
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 36))
+                    .foregroundStyle(Color("Darkgreen"))
+                    .symbolEffect(.pulse)
+            }
             Text("Creating flashcards...")
                 .font(.headline)
+            Text("Hang tight, almost ready!")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -129,10 +138,15 @@ struct ModuleContentView: View {
     }
 
     private func errorView(_ message: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(.orange)
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color("Red").opacity(0.12))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(Color("Red"))
+            }
             Text("Couldn't create flashcards")
                 .font(.headline)
             Text(message)
@@ -140,43 +154,63 @@ struct ModuleContentView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            Button("Retry") {
+            Button {
                 Task { await ensureCards(force: true) }
+            } label: {
+                Text("Retry")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 46)
+                    .foregroundStyle(.white)
+                    .background(Color("Darkgreen"), in: RoundedRectangle(cornerRadius: 12))
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
+            .padding(.horizontal, 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var carouselView: some View {
-        VStack(spacing: 16) {
-            // Progress bar + counter
+        VStack(spacing: 14) {
             VStack(spacing: 6) {
-                ProgressView(value: Double(currentIndex + 1), total: Double(moduleCards.count))
-                    .progressViewStyle(.linear)
-                    .tint(.accentColor)
+                HStack(spacing: 5) {
+                    ForEach(0..<min(moduleCards.count, 15), id: \.self) { i in
+                        Capsule()
+                            .fill(
+                                i < currentIndex
+                                    ? Color("Darkgreen")
+                                    : i == currentIndex
+                                        ? headerColors[i % headerColors.count]
+                                        : Color.secondary.opacity(0.2)
+                            )
+                            .frame(width: i == currentIndex ? 20 : 7, height: 7)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentIndex)
+                    }
+                }
+
                 HStack {
                     Text("Card \(currentIndex + 1) of \(moduleCards.count)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
                     if currentIndex < moduleCards.count - 1 {
-                        Text("Swipe →")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                        HStack(spacing: 3) {
+                            Text("Swipe")
+                            Image(systemName: "arrow.right")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                     } else {
-                        Label("Last card", systemImage: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
+                        Label("All done!", systemImage: "checkmark.circle.fill")
+                            .font(.caption.bold())
+                            .foregroundStyle(Color("Lightgreen"))
                     }
                 }
             }
             .padding(.horizontal)
 
-            // Cards
             TabView(selection: $currentIndex) {
                 ForEach(Array(moduleCards.enumerated()), id: \.element.id) { index, card in
-                    flashcardView(card)
+                    flashcardView(card, index: index)
                         .padding(.horizontal)
                         .tag(index)
                 }
@@ -184,25 +218,42 @@ struct ModuleContentView: View {
             #if os(iOS)
             .tabViewStyle(.page(indexDisplayMode: .never))
             #endif
+            .frame(maxHeight: .infinity)
         }
     }
 
-    private func flashcardView(_ card: StudyCard) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(card.title)
-                .font(.title2.bold())
-                .frame(maxWidth: .infinity, alignment: .leading)
+    private func flashcardView(_ card: StudyCard, index: Int) -> some View {
+        let color = headerColors[index % headerColors.count]
+
+        return VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Label("Card \(index + 1)", systemImage: "lightbulb.fill")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white.opacity(0.85))
+                    Spacer()
+                }
+                Text(card.title)
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(18)
+            .background(color)
 
             ScrollView {
                 Text(card.explanation)
                     .font(.body)
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(18)
             }
         }
-        .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
     }
 
     // MARK: - Generation
@@ -216,7 +267,6 @@ struct ModuleContentView: View {
         generationError = nil
         defer { isGenerating = false }
 
-        // If forcing regeneration, delete old cards first
         if force {
             for card in moduleCards { modelContext.delete(card) }
         }

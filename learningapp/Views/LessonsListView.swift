@@ -10,8 +10,8 @@ struct LessonsListView: View {
     @State private var showingInput = false
     @State private var coordinator = StudyCoordinator()
 
-    private let accentColors: [Color] = [
-        Color("Orange"), Color("Lightgreen"), Color("Red"), Color("Yellow"), Color("Darkgreen")
+    private let cardColors: [Color] = [
+        Color("Orange"), Color("Lightgreen"), Color("Red"), Color("Darkgreen")
     ]
 
     var body: some View {
@@ -33,7 +33,7 @@ struct LessonsListView: View {
                             }
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                         }
                         .onDelete(perform: deleteLessons)
                     }
@@ -69,49 +69,37 @@ struct LessonsListView: View {
     }
 
     private func lessonCard(_ lesson: Lesson, index: Int) -> some View {
-        let accent = accentColors[index % accentColors.count]
+        let color = cardColors[index % cardColors.count]
         let moduleCount = modules.filter { $0.lessonID == lesson.id }.count
 
-        return HStack(spacing: 0) {
-            Rectangle()
-                .fill(accent)
-                .frame(width: 4)
+        return HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(lesson.title.isEmpty ? "Untitled" : lesson.title)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(lesson.title.isEmpty ? "Untitled" : lesson.title)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .foregroundStyle(.primary)
-
-                    HStack(spacing: 8) {
-                        HStack(spacing: 3) {
-                            Image(systemName: "square.stack.3d.up")
-                                .font(.caption2)
-                            Text("\(moduleCount) modules")
-                                .font(.caption.bold())
-                        }
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(accent.opacity(0.15), in: Capsule())
-                        .foregroundStyle(accent)
-
-                        Text(lesson.dateCreated, format: .relative(presentation: .named))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                HStack(spacing: 5) {
+                    Image(systemName: "square.stack.3d.up")
+                        .font(.caption)
+                    Text("\(moduleCount) modules")
+                        .font(.caption.bold())
                 }
-                Spacer()
+                .foregroundStyle(.white.opacity(0.85))
+
+                Text(lesson.dateCreated, format: .relative(presentation: .named))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 12)
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .foregroundStyle(.white.opacity(0.6))
+                .font(.subheadline)
         }
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(accent.opacity(0.2), lineWidth: 1)
-        )
+        .padding(16)
+        .background(color, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var ingestionOverlay: some View {
